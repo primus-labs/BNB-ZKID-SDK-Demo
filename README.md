@@ -40,22 +40,3 @@ Open the printed URL (default: `http://127.0.0.1:5173`).
 4. Select provider and trigger the prove flow.
 
 If the extension is not installed/enabled, the prove flow cannot complete.
-
-## Notes
-
-- **Node version:** Node 18+
-- The page calls `client.init({ appId })` on load and uses returned `providers`.
-- The app itself does not call `GET /v1/config` directly.
-
-For production builds without dev server, Gateway and Primus hosts still need to
-allow **CORS** from your origin (or run behind a reverse proxy):
-
-```bash
-npm run build
-npm run preview
-```
-
-## SDK version
-
-This demo depends on `@primuslabs/bnb-zkid-sdk`.
-Bump the version in `package.json` if you publish a newer SDK.
