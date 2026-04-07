@@ -1,31 +1,54 @@
 # bnbzkidjssdk-demo
 
-Minimal **Vite + React** demo for [`@superorange/bnbzkid-js-sdk`](https://www.npmjs.com/package/@superorange/bnbzkid-js-sdk) using the Brevis Gateway + Primus SDK flow.
+Minimal **Vite + React** demo for
+[`@primuslabs/bnb-zkid-sdk`](https://www.npmjs.com/package/@primuslabs/bnb-zkid-sdk),
+using the Brevis Gateway + Primus SDK flow.
 
-## Prerequisites
+## Quick Start
 
-- Node 18+
-- npm (or pnpm/yarn)
+Follow the steps in order to run the demo successfully.
 
-Completing the full `prove` flow requires a **Primus browser extension** environment.
+### 1) Install Primus browser extension first
 
-The page calls `client.init({ appId })` once on load and uses the returned `providers`
-to render the selector. It does not call `GET /v1/config` directly in app code.
+The full `prove` flow depends on the Primus extension.
 
-On load, the page also requests a MetaMask connection, auto-fills the connected
-wallet address, and still allows the user to edit the `prove()` user address manually.
+Download extension package from:
+<https://github.com/primus-labs/BNB-ZKID-SDK/tree/main/extension>
 
-## Run
+After downloading, install/load the extension in your browser, then make sure the
+extension is enabled before opening this demo page.
+
+### 2) Install dependencies
 
 ```bash
 npm install
+```
+
+### 3) Start the demo
+
+```bash
 npm run dev
 ```
 
-Open the printed URL (default `http://127.0.0.1:5173`).
+Open the printed URL (default: `http://127.0.0.1:5173`).
 
-For production builds without the dev server, the Gateway and Primus hosts still
-need to allow **CORS** from your origin, or you need to run behind a reverse proxy.
+## First-time usage flow (recommended)
+
+1. Open the demo page after `npm run dev`.
+2. Connect MetaMask when prompted.
+3. Keep or edit the auto-filled user address.
+4. Select provider and trigger the prove flow.
+
+If the extension is not installed/enabled, the prove flow cannot complete.
+
+## Notes
+
+- **Node version:** Node 18+
+- The page calls `client.init({ appId })` on load and uses returned `providers`.
+- The app itself does not call `GET /v1/config` directly.
+
+For production builds without dev server, Gateway and Primus hosts still need to
+allow **CORS** from your origin (or run behind a reverse proxy):
 
 ```bash
 npm run build
@@ -34,4 +57,5 @@ npm run preview
 
 ## SDK version
 
-This demo depends on `@superorange/bnbzkid-js-sdk@^0.1.0`. Bump the version in `package.json` if you publish a newer SDK.
+This demo depends on `@primuslabs/bnb-zkid-sdk`.
+Bump the version in `package.json` if you publish a newer SDK.
