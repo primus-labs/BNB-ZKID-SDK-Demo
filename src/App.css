@@ -464,6 +464,21 @@ button:disabled {
   color: var(--ink);
 }
 
+.modal-dialog__spinner {
+  width: 1rem;
+  height: 1rem;
+  border-radius: 999px;
+  border: 2px solid #d2deef;
+  border-top-color: #3c71be;
+  animation: modal-spin 0.8s linear infinite;
+}
+
+@keyframes modal-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .modal-dialog__body {
   margin: 0;
   font-size: 0.92rem;
@@ -480,6 +495,77 @@ button:disabled {
   background: #fbf8f4;
   border: 1px solid #ece4dc;
   border-radius: 0.65rem;
+}
+
+.modal-dialog--progress {
+  width: min(100%, 30rem);
+}
+
+.progress-modal-list {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.progress-modal-item {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 2rem;
+  padding: 0.45rem 0.65rem;
+  border-radius: 0.65rem;
+  background: #f8fbff;
+  border: 1px solid #d8e5f8;
+  color: #2a4569;
+  font-size: 0.88rem;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+}
+
+.progress-modal-item.is-active {
+  border-color: #bdd6f8;
+  background: #f3f8ff;
+}
+
+.progress-modal-item.is-done {
+  border-color: #b8e4d0;
+  background: #ebf8f1;
+  color: #1f624a;
+}
+
+.progress-modal-spinner {
+  width: 0.85rem;
+  height: 0.85rem;
+  border-radius: 999px;
+  border: 2px solid #c9daf6;
+  border-top-color: #3c71be;
+  animation: modal-spin 0.75s linear infinite;
+  flex-shrink: 0;
+}
+
+.progress-modal-check {
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #0a7a5a;
+  background: #d5f1e5;
+  border: 1px solid #9dd8bd;
+  flex-shrink: 0;
+}
+
+.progress-modal-result {
+  margin-top: 0.3rem;
+  padding: 0.62rem 0.72rem;
+  border-radius: 0.65rem;
+  border: 1px solid #b8e4d0;
+  background: #ebf8f1;
+  color: #1f624a;
+  font-size: 0.84rem;
+  line-height: 1.45;
+  font-family: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, Consolas, monospace;
 }
 
 .modal-dialog__actions {

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   BnbZkIdClient,
   BnbZkIdProveError,
+  type InitResult,
   type ProveInput
 } from "@primuslabs/bnb-zkid-sdk";
 import { DemoLog } from "./demo-log";
@@ -20,9 +21,21 @@ type AlertModalState = {
   detail?: string;
 };
 
-function isPrimusExtensionPresent(): boolean {
-  return Boolean((window as Window & { primus?: unknown }).primus);
-}
+const GATEWAY_CONFIG_URL = "https://zk-id.brevis.network/v1/config";
+const PROOF_STATUS_ORDER = ["initializing", "data_verifying", "proof_generating", "on_chain_attested"] as const;
+type ProofStatusKey = (typeof PROOF_STATUS_ORDER)[number] | "failed";
+
+const PROOF_STATUS_LABELS: Record<ProofStatusKey, string> = {
+  initializing: "Initializing",
+  data_verifying: "Data Verifying",
+  proof_generating: "Proof Generating",
+  on_chain_attested: "On-chain Submitting",
+  failed: "Failed"
+};
+
+type GatewayConfigResponse = {
+  providers?: unknown;
+};
 
 function formatInitFailureForModal(error: unknown): AlertModalState {
   if (error !== null && typeof error === "object" && "message" in error) {
@@ -33,10 +46,24 @@ function formatInitFailureForModal(error: unknown): AlertModalState {
     };
     const primusHint = e.details?.primus?.message;
     if (e.code === "00000") {
+      const hasPrimusRuntimeHint = detectPrimusRuntimeHint();
+      const debugText = safeStringifyError(error);
+      const suggestLocalhost =
+        window.location.hostname === "127.0.0.1"
+          ? `Try opening this page via localhost instead: http://localhost:${window.location.port || "5173"}/`
+          : undefined;
       return {
-        title: "Primus extension required",
-        description: e.message || "Install the Primus browser extension to generate zkTLS proofs.",
-        detail: primusHint
+        title: hasPrimusRuntimeHint ? "Primus extension unavailable" : "Primus extension required",
+        description: hasPrimusRuntimeHint
+          ? "Primus extension seems installed, but the current page cannot access it. Please refresh this tab, confirm extension permissions, and try again."
+          : e.message || "Install the Primus browser extension to generate zkTLS proofs.",
+        detail:
+          suggestLocalhost ||
+          primusHint ||
+          debugText ||
+          (hasPrimusRuntimeHint
+            ? "If extension popup works but page still fails, reopen browser and ensure this site is allowed by the extension."
+            : undefined)
       };
     }
     return {
@@ -63,14 +90,47 @@ function formatErrorForLogWithoutDetails(error: unknown): string {
   return formatError(error);
 }
 
+function safeStringifyError(error: unknown): string | undefined {
+  try {
+    const text = JSON.stringify(error, null, 2);
+    return typeof text === "string" ? text : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function detectPrimusRuntimeHint(): boolean {
+  const w = window as Window & {
+    primus?: unknown;
+    PrimusZKTLS?: unknown;
+    zka?: unknown;
+  };
+  return Boolean(w.primus || w.PrimusZKTLS || w.zka);
+}
+
+function isInitFailureResult(result: InitResult): result is Extract<InitResult, { success: false }> {
+  return result.success === false;
+}
+
+async function initClientWithRetry(client: BnbZkIdClient): Promise<InitResult> {
+  const first = await client.init({ appId: SDK_DEMO_APP_ID });
+  if (!isInitFailureResult(first) || first.error?.code !== "00000") {
+    return first;
+  }
+  // Give the extension injection pipeline a brief chance to settle before final verdict.
+  await new Promise((resolve) => window.setTimeout(resolve, 450));
+  return client.init({ appId: SDK_DEMO_APP_ID });
+}
+
 export default function App() {
   const [providerOptions, setProviderOptions] = useState<ProviderOption[]>([]);
   const [providersLoading, setProvidersLoading] = useState(true);
   const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
   const [running, setRunning] = useState(false);
-  const [progressStatus, setProgressStatus] = useState<string | null>(null);
-  const [runOutcome, setRunOutcome] = useState<"success" | "failed" | null>(null);
+  const [progressStatusTrail, setProgressStatusTrail] = useState<ProofStatusKey[]>([]);
+  const [finalProofResult, setFinalProofResult] = useState<string | null>(null);
   const [alertModal, setAlertModal] = useState<AlertModalState | null>(null);
+  const [proofModalOpen, setProofModalOpen] = useState(false);
 
   const clientRef = useRef<BnbZkIdClient | null>(null);
   const { userAddress, setUserAddress, walletError, isWalletConnected, connectWallet, disconnectWallet } =
@@ -87,30 +147,37 @@ export default function App() {
       try {
         const client = new BnbZkIdClient();
         clientRef.current = client;
-        const initResult = await client.init({
-          appId: SDK_DEMO_APP_ID
-        });
-
-        if (cancelled) {
-          return;
+        let rows: ProviderOption[] = [];
+        try {
+          rows = await fetchProviderOptionsFromGateway();
+        } catch (providerError) {
+          console.error("Gateway provider fetch error:", providerError);
         }
 
-        if (!initResult.success) {
-          setProviderOptions([]);
-          setProvidersLoading(false);
-          return;
-        }
+        if (rows.length === 0) {
+          const initResult = await client.init({
+            appId: SDK_DEMO_APP_ID
+          });
 
-        const rows = flattenProviderOptions(initResult.providers);
+          if (cancelled) {
+            return;
+          }
+
+          if (initResult.success) {
+            rows = flattenProviderOptions(initResult.providers);
+          }
+        }
         setProviderOptions(rows);
-        setProvidersLoading(false);
       } catch (err) {
         if (cancelled) {
           return;
         }
         setProviderOptions([]);
-        setProvidersLoading(false);
         console.error("SDK init error:", err);
+      } finally {
+        if (!cancelled) {
+          setProvidersLoading(false);
+        }
       }
     })();
 
@@ -137,6 +204,13 @@ export default function App() {
     setLogEntries((prev) => [...prev, { kind: "text", text }]);
   };
 
+  const appendProofStatus = (status: ProofStatusKey) => {
+    if (!PROOF_STATUS_ORDER.includes(status as (typeof PROOF_STATUS_ORDER)[number])) {
+      return;
+    }
+    setProgressStatusTrail((prev) => (prev.includes(status) ? prev : [...prev, status]));
+  };
+
   const hasWalletAddress = userAddress.trim().length > 0;
   const displayProviderOptions = providersLoading
     ? []
@@ -147,24 +221,21 @@ export default function App() {
 
   const runProveFlow = async (selectedOption: ProviderOption, connectedUserAddress: string) => {
     setLogEntries([]);
-    setProgressStatus(null);
-    setRunOutcome(null);
+    setProgressStatusTrail([]);
+    setFinalProofResult(null);
     setRunning(true);
-
-    let runSucceeded: boolean | null = null;
+    setProofModalOpen(true);
 
     try {
       const client = clientRef.current;
       if (!client) {
         appendLog("error: SDK client is not initialized");
-        runSucceeded = false;
         return;
       }
 
       const identityPropertyId = selectedOption.identityPropertyId;
       if (!identityPropertyId) {
         appendLog("error: no identity property id");
-        runSucceeded = false;
         return;
       }
 
@@ -176,23 +247,23 @@ export default function App() {
 
       const proveResult = await client.prove(proveInput, {
         onProgress(event) {
-          setProgressStatus(event.status);
+          appendProofStatus(event.status as ProofStatusKey);
         }
       });
 
+      appendProofStatus("on_chain_attested");
+      setFinalProofResult(
+        `On-chain result: ${proveResult.status}${proveResult.proofRequestId ? ` (ProofRequestId: ${proveResult.proofRequestId})` : ""}`
+      );
       appendLog(`prove: ${JSON.stringify(proveResult, null, 2)}`);
-      runSucceeded = true;
     } catch (error) {
-      runSucceeded = false;
       if (error instanceof BnbZkIdProveError) {
         appendLog(`error: ${formatErrorForLogWithoutDetails(error.toJSON())}`);
       } else {
         appendLog(`error: ${formatError(error)}`);
       }
+      setProofModalOpen(false);
     } finally {
-      if (runSucceeded !== null) {
-        setRunOutcome(runSucceeded ? "success" : "failed");
-      }
       setRunning(false);
     }
   };
@@ -207,16 +278,6 @@ export default function App() {
       return;
     }
 
-    if (!isPrimusExtensionPresent()) {
-      setAlertModal({
-        title: "Primus extension required",
-        description:
-          "The Primus browser extension was not detected. Install it, pin it, reload this page, then try again.",
-        detail: "ZKTLS proof generation runs inside the extension. Without it, the demo cannot continue."
-      });
-      return;
-    }
-
     const client = clientRef.current;
     if (!client) {
       setAlertModal({
@@ -228,12 +289,25 @@ export default function App() {
 
     let effectiveRows = providerOptions;
     if (effectiveRows.length === 0) {
-      const initResult = await client.init({ appId: SDK_DEMO_APP_ID });
-      if (!initResult.success) {
-        setAlertModal(formatInitFailureForModal(initResult.error));
-        return;
+      try {
+        effectiveRows = await fetchProviderOptionsFromGateway();
+      } catch (providerError) {
+        console.error("Gateway provider fetch error:", providerError);
       }
-      effectiveRows = flattenProviderOptions(initResult.providers);
+    }
+
+    // Always initialize before prove(). SDK throws if prove is called before successful init.
+    const initResult = await initClientWithRetry(client);
+    if (!initResult.success) {
+      setAlertModal(formatInitFailureForModal(initResult.error));
+      return;
+    }
+
+    const initRows = flattenProviderOptions(initResult.providers);
+    if (initRows.length > 0) {
+      effectiveRows = initRows;
+      setProviderOptions(initRows);
+    } else if (effectiveRows.length > 0) {
       setProviderOptions(effectiveRows);
     }
 
@@ -320,12 +394,65 @@ export default function App() {
 
           <DemoLog
             entries={logEntries}
-            running={running}
-            progressStatus={progressStatus}
-            runOutcome={runOutcome}
           />
         </div>
       </main>
+
+      {proofModalOpen ? (
+        <div
+          className="modal-backdrop"
+          role="presentation"
+          onClick={(e) => {
+            if (!running && finalProofResult && e.target === e.currentTarget) {
+              setProofModalOpen(false);
+            }
+          }}
+        >
+          <div className="modal-dialog modal-dialog--progress" role="dialog" aria-modal="true">
+            <div className="modal-dialog__header">
+              <h3 className="modal-dialog__title">Proof in progress</h3>
+            </div>
+            <div className="progress-modal-list" role="status" aria-live="polite">
+              {(() => {
+                const activeStepIndex =
+                  progressStatusTrail.length > 0
+                    ? PROOF_STATUS_ORDER.findIndex(
+                        (step) => step === progressStatusTrail[progressStatusTrail.length - 1]
+                      )
+                    : 0;
+                const visibleSteps = PROOF_STATUS_ORDER.slice(0, Math.max(1, activeStepIndex + 1));
+                return visibleSteps.map((step, index) => {
+                  const isDone = index < activeStepIndex || (!running && finalProofResult !== null);
+                  const isActive = index === activeStepIndex && running;
+                  return (
+                    <div
+                      key={step}
+                      className={`progress-modal-item ${isDone ? "is-done" : ""} ${isActive ? "is-active" : ""}`}
+                    >
+                      {isDone ? (
+                        <span className="progress-modal-check" aria-hidden>
+                          ✓
+                        </span>
+                      ) : (
+                        <span className="progress-modal-spinner" aria-hidden />
+                      )}
+                      <span>{PROOF_STATUS_LABELS[step]}</span>
+                    </div>
+                  );
+                });
+              })()}
+              {finalProofResult ? <div className="progress-modal-result">{finalProofResult}</div> : null}
+            </div>
+            {!running && finalProofResult ? (
+              <div className="modal-dialog__actions">
+                <button type="button" className="modal-dialog__btn" onClick={() => setProofModalOpen(false)}>
+                  OK
+                </button>
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
 
       {alertModal ? (
         <div
@@ -366,4 +493,16 @@ export default function App() {
       ) : null}
     </>
   );
+}
+
+async function fetchProviderOptionsFromGateway(): Promise<ProviderOption[]> {
+  const response = await fetch(GATEWAY_CONFIG_URL, { method: "GET" });
+  if (!response.ok) {
+    throw new Error(`Gateway config request failed: HTTP ${response.status}`);
+  }
+  const payload = (await response.json()) as GatewayConfigResponse;
+  if (!Array.isArray(payload.providers)) {
+    return [];
+  }
+  return flattenProviderOptions(payload.providers as Parameters<typeof flattenProviderOptions>[0]);
 }
