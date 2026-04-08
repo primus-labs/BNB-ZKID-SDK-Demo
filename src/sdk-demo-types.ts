@@ -20,5 +20,25 @@ export const FALLBACK_PROVIDER_OPTIONS: ProviderOption[] = [
     providerDescription: "GitHub",
     identityPropertyId: "github_account_age",
     propertyDescription: "GitHub account age"
+  },
+  {
+    providerDescription: "Binance",
+    identityPropertyId: "binance_spot_trade_kyc",
+    propertyDescription: "Spot trade history + KYC level"
+  },
+  {
+    providerDescription: "Steam",
+    identityPropertyId: "steam_library_account_age",
+    propertyDescription: "Game library value + Account age"
+  },
+  {
+    providerDescription: "Amazon",
+    identityPropertyId: "amazon_prime_orders_account_age",
+    propertyDescription: "Prime status + order counts + Account age"
+  },
+  {
+    providerDescription: "OKX",
+    identityPropertyId: "okx_trade_kyc",
+    propertyDescription: "Trade history + KYC level"
   }
 ];
