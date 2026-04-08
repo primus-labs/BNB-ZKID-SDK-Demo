@@ -65,6 +65,7 @@ function formatErrorForLogWithoutDetails(error: unknown): string {
 
 export default function App() {
   const [providerOptions, setProviderOptions] = useState<ProviderOption[]>([]);
+  const [providersLoading, setProvidersLoading] = useState(true);
   const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
   const [running, setRunning] = useState(false);
   const [progressStatus, setProgressStatus] = useState<string | null>(null);
@@ -96,16 +97,19 @@ export default function App() {
 
         if (!initResult.success) {
           setProviderOptions([]);
+          setProvidersLoading(false);
           return;
         }
 
         const rows = flattenProviderOptions(initResult.providers);
         setProviderOptions(rows);
+        setProvidersLoading(false);
       } catch (err) {
         if (cancelled) {
           return;
         }
         setProviderOptions([]);
+        setProvidersLoading(false);
         console.error("SDK init error:", err);
       }
     })();
@@ -134,8 +138,11 @@ export default function App() {
   };
 
   const hasWalletAddress = userAddress.trim().length > 0;
-  const displayProviderOptions =
-    providerOptions.length > 0 ? providerOptions : FALLBACK_PROVIDER_OPTIONS;
+  const displayProviderOptions = providersLoading
+    ? []
+    : providerOptions.length > 0
+      ? providerOptions
+      : FALLBACK_PROVIDER_OPTIONS;
   const canRunProve = !running && hasWalletAddress;
 
   const runProveFlow = async (selectedOption: ProviderOption, connectedUserAddress: string) => {
@@ -286,28 +293,29 @@ export default function App() {
             <div className="step-head">
               <h2>Step 2 Proof Generation</h2>
             </div>
-            {providerOptions.length === 0 ? (
-              <p className="step-hint">
-                If the SDK could not load providers on page load (for example, the Primus extension
-                was missing), connect your wallet and choose a proof below—we will check the extension
-                and retry initialization when you click.
-              </p>
-            ) : null}
-            <div className="provider-grid">
-              {displayProviderOptions.map((option) => (
-                <button
-                  key={option.identityPropertyId}
-                  type="button"
-                  className="provider-btn"
-                  disabled={!canRunProve}
-                  onClick={() => void handleProviderClick(option)}
-                  title={`${option.propertyDescription} (${option.identityPropertyId})`}
-                >
-                  <span className="provider-btn-title">{option.providerDescription}</span>
-                  <span className="provider-btn-subtitle">{option.propertyDescription}</span>
-                </button>
-              ))}
-            </div>
+            {providersLoading ? (
+              <div className="provider-grid provider-grid--loading" aria-label="Loading providers">
+                {Array.from({ length: 3 }).map((_, idx) => (
+                  <div key={idx} className="provider-skeleton" aria-hidden />
+                ))}
+              </div>
+            ) : (
+              <div className="provider-grid">
+                {displayProviderOptions.map((option) => (
+                  <button
+                    key={option.identityPropertyId}
+                    type="button"
+                    className="provider-btn"
+                    disabled={!canRunProve}
+                    onClick={() => void handleProviderClick(option)}
+                    title={`${option.propertyDescription} (${option.identityPropertyId})`}
+                  >
+                    <span className="provider-btn-title">{option.providerDescription}</span>
+                    <span className="provider-btn-subtitle">{option.propertyDescription}</span>
+                  </button>
+                ))}
+              </div>
+            )}
           </section>
 
           <DemoLog

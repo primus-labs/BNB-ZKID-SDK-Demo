@@ -104,6 +104,28 @@ h1 {
   gap: 0.7rem;
 }
 
+.provider-grid--loading {
+  min-height: 7.5rem;
+}
+
+.provider-skeleton {
+  height: 4.2rem;
+  border-radius: 0.75rem;
+  border: 1px solid #dfe6f3;
+  background: linear-gradient(90deg, #f3f6fb 15%, #ebf1f9 38%, #f3f6fb 63%);
+  background-size: 220% 100%;
+  animation: provider-shimmer 1.3s ease-in-out infinite;
+}
+
+@keyframes provider-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
 .provider-btn {
   text-align: left;
   padding: 0.75rem 0.85rem;
@@ -483,13 +505,6 @@ button:disabled {
 .modal-dialog__btn:hover {
   transform: translateY(-1px);
   box-shadow: 0 6px 18px rgba(31, 26, 20, 0.24);
-}
-
-.step-hint {
-  margin: 0 0 0.65rem;
-  font-size: 0.86rem;
-  color: var(--muted);
-  line-height: 1.45;
 }
 
 @media (max-width: 740px) {

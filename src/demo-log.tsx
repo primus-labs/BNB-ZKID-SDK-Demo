@@ -11,11 +11,32 @@ const PROGRESS_STEPS = [
   { key: "initializing", label: "Initializing" },
   { key: "data_verifying", label: "Data Verifying" },
   { key: "proof_generating", label: "Proof Generating" },
-  { key: "on_chain_attested", label: "On-chain Attested" }
+  { key: "on_chain_submitting", label: "On-chain Submitting" }
 ] as const;
 
 export function DemoLog({ entries, running, progressStatus, runOutcome }: DemoLogProps) {
-  const activeStepIndex = PROGRESS_STEPS.findIndex((step) => step.key === progressStatus);
+  const activeStepKey = (() => {
+    if (
+      progressStatus === "initializing" ||
+      progressStatus === "data_verifying" ||
+      progressStatus === "proof_generating"
+    ) {
+      return progressStatus;
+    }
+
+    // SDK has no explicit "on_chain_submitting" progress event.
+    // Once proof_generating ends, we present this synthetic step as active.
+    if (
+      progressStatus === "failed" ||
+      (!running && runOutcome !== null && progressStatus === "proof_generating")
+    ) {
+      return "on_chain_submitting";
+    }
+
+    return null;
+  })();
+
+  const activeStepIndex = PROGRESS_STEPS.findIndex((step) => step.key === activeStepKey);
 
   return (
     <div className="log" aria-live="polite">
