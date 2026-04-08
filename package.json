@@ -9,7 +9,7 @@
     "preview": "vite preview --host 0.0.0.0"
   },
   "dependencies": {
-    "@primuslabs/bnb-zkid-sdk": "^0.1.0-beta.1",
+    "@primuslabs/bnb-zkid-sdk": "^0.1.0-beta.2",
     "buffer": "^6.0.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"

@@ -10,7 +10,8 @@ type DemoLogProps = {
 const PROGRESS_STEPS = [
   { key: "initializing", label: "Initializing" },
   { key: "data_verifying", label: "Data Verifying" },
-  { key: "proof_generating", label: "Proof Generating" }
+  { key: "proof_generating", label: "Proof Generating" },
+  { key: "on_chain_attested", label: "On-chain Attested" }
 ] as const;
 
 export function DemoLog({ entries, running, progressStatus, runOutcome }: DemoLogProps) {
@@ -42,8 +43,9 @@ export function DemoLog({ entries, running, progressStatus, runOutcome }: DemoLo
         ) : null}
       </div>
 
-      {entries.map((entry, i) => {
-        if (entry.kind === "text") {
+      {entries
+        .filter((entry) => entry.kind === "text")
+        .map((entry, i) => {
           const isError = entry.text.startsWith("error:");
           const isResult = entry.text.startsWith("prove:");
           return (
@@ -54,25 +56,7 @@ export function DemoLog({ entries, running, progressStatus, runOutcome }: DemoLo
               {entry.text}
             </div>
           );
-        }
-
-        return (
-          <div
-            key={i}
-            className={`log-outcome log-outcome--${entry.success ? "success" : "failure"}`}
-          >
-            <span
-              className={`status-dot status-dot--${entry.success ? "success" : "failure"}`}
-              aria-hidden
-            />
-            <span>
-              {entry.success
-                ? "Success: prove flow completed"
-                : "Failure: prove flow did not complete successfully"}
-            </span>
-          </div>
-        );
-      })}
+        })}
     </div>
   );
 }

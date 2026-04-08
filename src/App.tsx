@@ -51,6 +51,18 @@ function formatInitFailureForModal(error: unknown): AlertModalState {
   };
 }
 
+function formatErrorForLogWithoutDetails(error: unknown): string {
+  if (error !== null && typeof error === "object") {
+    const errObj = error as Record<string, unknown>;
+    if ("details" in errObj) {
+      const sanitized = { ...errObj };
+      delete sanitized.details;
+      return JSON.stringify(sanitized, null, 2);
+    }
+  }
+  return formatError(error);
+}
+
 export default function App() {
   const [providerOptions, setProviderOptions] = useState<ProviderOption[]>([]);
   const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
@@ -121,10 +133,6 @@ export default function App() {
     setLogEntries((prev) => [...prev, { kind: "text", text }]);
   };
 
-  const appendOutcome = (success: boolean) => {
-    setLogEntries((prev) => [...prev, { kind: "outcome", success }]);
-  };
-
   const hasWalletAddress = userAddress.trim().length > 0;
   const displayProviderOptions =
     providerOptions.length > 0 ? providerOptions : FALLBACK_PROVIDER_OPTIONS;
@@ -170,13 +178,12 @@ export default function App() {
     } catch (error) {
       runSucceeded = false;
       if (error instanceof BnbZkIdProveError) {
-        appendLog(`error: ${JSON.stringify(error.toJSON(), null, 2)}`);
+        appendLog(`error: ${formatErrorForLogWithoutDetails(error.toJSON())}`);
       } else {
         appendLog(`error: ${formatError(error)}`);
       }
     } finally {
       if (runSucceeded !== null) {
-        appendOutcome(runSucceeded);
         setRunOutcome(runSucceeded ? "success" : "failed");
       }
       setRunning(false);
