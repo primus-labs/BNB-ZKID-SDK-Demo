@@ -31,6 +31,9 @@ npm run dev
 ```
 
 Open the printed URL (default: `http://127.0.0.1:5173`).
+This demo is configured with `--host 0.0.0.0`, so you can also access it from
+another device in the same LAN using your machine IP, for example:
+`http://192.168.x.x:5173`.
 
 ## First-time usage flow (recommended)
 

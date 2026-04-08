@@ -45,38 +45,42 @@ async function requestConnectedWalletAddress(): Promise<string> {
 export function useMetaMaskWallet() {
   const [userAddress, setUserAddress] = useState("");
   const [walletError, setWalletError] = useState<string | null>(null);
+  const [isWalletConnected, setIsWalletConnected] = useState(false);
+
+  const connectWallet = async () => {
+    try {
+      const address = await requestConnectedWalletAddress();
+      setUserAddress(address);
+      setWalletError(null);
+      setIsWalletConnected(true);
+    } catch (error) {
+      setUserAddress("");
+      setWalletError(formatError(error));
+      setIsWalletConnected(false);
+    }
+  };
+
+  const disconnectWallet = () => {
+    // MetaMask does not provide a reliable programmatic disconnect for dapps.
+    // We clear the local wallet state so the demo requires an explicit reconnect.
+    setUserAddress("");
+    setWalletError(null);
+    setIsWalletConnected(false);
+  };
 
   useEffect(() => {
-    let cancelled = false;
     const provider = getEthereumProvider();
-
-    const connectWallet = async () => {
-      try {
-        const address = await requestConnectedWalletAddress();
-        if (!cancelled) {
-          setUserAddress(address);
-          setWalletError(null);
-        }
-      } catch (error) {
-        if (!cancelled) {
-          setUserAddress("");
-          setWalletError(formatError(error));
-        }
-      }
-    };
-
-    void connectWallet();
 
     const handleAccountsChanged = (accounts: string[]) => {
       const nextAddress = typeof accounts[0] === "string" ? accounts[0].trim() : "";
       setUserAddress(nextAddress);
+      setIsWalletConnected(Boolean(nextAddress));
       setWalletError(nextAddress ? null : "MetaMask is connected but no account is available.");
     };
 
     provider?.on?.("accountsChanged", handleAccountsChanged);
 
     return () => {
-      cancelled = true;
       provider?.removeListener?.("accountsChanged", handleAccountsChanged);
     };
   }, []);
@@ -84,6 +88,9 @@ export function useMetaMaskWallet() {
   return {
     userAddress,
     setUserAddress,
-    walletError
+    walletError,
+    isWalletConnected,
+    connectWallet,
+    disconnectWallet
   };
 }

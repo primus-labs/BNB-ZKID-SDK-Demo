@@ -5,6 +5,7 @@ type DemoControlsProps = {
   setUserAddress: (value: string) => void;
   walletError: string | null;
   initError: string | null;
+  extensionDetected: boolean;
   providerOptions: ProviderOption[];
   selectedPropertyId: string;
   setSelectedPropertyId: (value: string) => void;
@@ -16,6 +17,7 @@ export function DemoControls({
   setUserAddress,
   walletError,
   initError,
+  extensionDetected,
   providerOptions,
   selectedPropertyId,
   setSelectedPropertyId,
@@ -57,9 +59,15 @@ export function DemoControls({
       </div>
 
       <p className="hint">
-        This demo auto-connects MetaMask on page load and uses the connected wallet address as the{" "}
-        <code>prove()</code> user address. A Primus browser extension environment is still required
+        Click <code>Connect Wallet</code> to connect MetaMask and use the connected wallet address
+        as the <code>prove()</code> user address. A Primus browser extension environment is still required
         to complete <code>prove()</code>.
+      </p>
+      <p className="hint">
+        Extension status:{" "}
+        <span className={`status-chip ${extensionDetected ? "status-chip--ok" : "status-chip--warn"}`}>
+          {extensionDetected ? "detected" : "not detected - install Primus extension"}
+        </span>
       </p>
       {walletError ? <p className="hint">Wallet error: {walletError}</p> : null}
       {initError ? <p className="hint">Init error: {initError}</p> : null}

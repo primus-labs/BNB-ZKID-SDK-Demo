@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { BnbZkIdClient, BnbZkIdProveError, type ProveInput } from "@primuslabs/bnb-zkid-sdk";
-import { DemoControls } from "./demo-controls";
 import { DemoLog } from "./demo-log";
 import { SDK_DEMO_APP_ID, type LogEntry, type ProviderOption } from "./sdk-demo-types";
 import { flattenProviderOptions, formatError } from "./sdk-demo-utils";
@@ -9,12 +8,15 @@ import { useMetaMaskWallet } from "./use-metamask-wallet";
 export default function App() {
   const [providerOptions, setProviderOptions] = useState<ProviderOption[]>([]);
   const [initError, setInitError] = useState<string | null>(null);
-  const [selectedPropertyId, setSelectedPropertyId] = useState("");
   const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
   const [running, setRunning] = useState(false);
+  const [extensionDetected, setExtensionDetected] = useState(false);
+  const [progressStatus, setProgressStatus] = useState<string | null>(null);
+  const [runOutcome, setRunOutcome] = useState<"success" | "failed" | null>(null);
 
   const clientRef = useRef<BnbZkIdClient | null>(null);
-  const { userAddress, setUserAddress, walletError } = useMetaMaskWallet();
+  const { userAddress, setUserAddress, walletError, isWalletConnected, connectWallet, disconnectWallet } =
+    useMetaMaskWallet();
 
   useEffect(() => {
     let cancelled = false;
@@ -42,12 +44,6 @@ export default function App() {
 
         const rows = flattenProviderOptions(initResult.providers);
         setProviderOptions(rows);
-        setSelectedPropertyId((prev) => {
-          if (prev && rows.some((r) => r.identityPropertyId === prev)) {
-            return prev;
-          }
-          return rows[0]?.identityPropertyId ?? "";
-        });
       } catch (err) {
         if (cancelled) {
           return;
@@ -63,6 +59,16 @@ export default function App() {
     };
   }, []);
 
+  useEffect(() => {
+    const checkExtension = () => {
+      const hasPrimus = Boolean((window as Window & { primus?: unknown }).primus);
+      setExtensionDetected(hasPrimus);
+    };
+    checkExtension();
+    const id = window.setInterval(checkExtension, 500);
+    return () => window.clearInterval(id);
+  }, []);
+
   const appendLog = (text: string) => {
     setLogEntries((prev) => [...prev, { kind: "text", text }]);
   };
@@ -71,12 +77,13 @@ export default function App() {
     setLogEntries((prev) => [...prev, { kind: "outcome", success }]);
   };
 
-  const clearLog = () => setLogEntries([]);
+  const hasWalletAddress = userAddress.trim().length > 0;
+  const canRunProve = !running && providerOptions.length > 0 && hasWalletAddress;
 
-  const selectedOption = providerOptions.find((r) => r.identityPropertyId === selectedPropertyId);
-
-  const runDemo = async () => {
+  const runDemo = async (selectedOption: ProviderOption) => {
     setLogEntries([]);
+    setProgressStatus(null);
+    setRunOutcome(null);
     setRunning(true);
 
     let runSucceeded: boolean | null = null;
@@ -110,12 +117,13 @@ export default function App() {
         return;
       }
 
-      appendLog(
-        `provider: ${selectedOption?.providerDescription ?? ""} — ${selectedOption?.propertyDescription ?? ""} (${selectedOption?.identityPropertyId ?? ""})`
-      );
+      if (!extensionDetected) {
+        appendLog("Primus extension is not detected. Please install and enable the extension first.");
+        runSucceeded = false;
+        return;
+      }
 
-      const identityPropertyId =
-        selectedOption?.identityPropertyId ?? providerOptions[0]?.identityPropertyId;
+      const identityPropertyId = selectedOption.identityPropertyId;
       if (!identityPropertyId) {
         appendLog("error: no identity property id");
         runSucceeded = false;
@@ -130,7 +138,7 @@ export default function App() {
 
       const proveResult = await client.prove(proveInput, {
         onProgress(event) {
-          appendLog(`progress: ${event.status} ${event.proofRequestId ?? ""}`.trim());
+          setProgressStatus(event.status);
         }
       });
 
@@ -146,6 +154,7 @@ export default function App() {
     } finally {
       if (runSucceeded !== null) {
         appendOutcome(runSucceeded);
+        setRunOutcome(runSucceeded ? "success" : "failed");
       }
       setRunning(false);
     }
@@ -155,40 +164,69 @@ export default function App() {
     <>
       <main className="app-main">
         <div className="panel">
-          <h1>BNB ZKID SDK Demo</h1>
-          <p>
-            A minimal browser demo for <code>BnbZkIdClient</code> from{" "}
-            <code>@primuslabs/bnb-zkid-sdk</code>. It initializes the SDK once, uses the returned
-            provider list to render the selector, and runs <code>prove()</code> with the selected
-            property.
-          </p>
+          <header className="panel-header">
+            <div>
+              <h1>ZKID SDK Integration Live Demo</h1>
+              <p>
+                A step-by-step walkthrough of integrating zkTLS and zkVM workflow into the Lista
+                dApp frontend.
+              </p>
+            </div>
+          </header>
 
-          <DemoControls
-            userAddress={userAddress}
-            setUserAddress={setUserAddress}
-            walletError={walletError}
-            initError={initError}
-            providerOptions={providerOptions}
-            selectedPropertyId={selectedPropertyId}
-            setSelectedPropertyId={setSelectedPropertyId}
+          <section className="step-card">
+            <div className="step-head">
+              <h2>Step 1 Connect Wallet</h2>
+              <button
+                type="button"
+                className="btn-secondary wallet-btn"
+                onClick={() => (isWalletConnected ? disconnectWallet() : void connectWallet())}
+                disabled={running}
+              >
+                {isWalletConnected ? "Disconnect Wallet" : "Connect Wallet"}
+              </button>
+            </div>
+            <div className="field">
+              <label htmlFor="user-address">User Address</label>
+              <input
+                id="user-address"
+                value={userAddress}
+                onChange={(e) => setUserAddress(e.target.value)}
+                placeholder="Connect MetaMask to populate, or edit manually"
+                autoComplete="off"
+              />
+            </div>
+            {walletError ? <p className="hint">Wallet error: {walletError}</p> : null}
+            {initError ? <p className="hint">Init error: {initError}</p> : null}
+          </section>
+
+          <section className="step-card">
+            <div className="step-head">
+              <h2>Step 2 Proof Generation</h2>
+            </div>
+            <div className="provider-grid">
+              {providerOptions.map((option) => (
+                <button
+                  key={option.identityPropertyId}
+                  type="button"
+                  className="provider-btn"
+                  disabled={!canRunProve}
+                  onClick={() => void runDemo(option)}
+                  title={`${option.propertyDescription} (${option.identityPropertyId})`}
+                >
+                  <span className="provider-btn-title">{option.providerDescription}</span>
+                  <span className="provider-btn-subtitle">{option.propertyDescription}</span>
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <DemoLog
+            entries={logEntries}
             running={running}
+            progressStatus={progressStatus}
+            runOutcome={runOutcome}
           />
-
-          <div className="row">
-            <button
-              type="button"
-              className="btn-primary"
-              onClick={() => void runDemo()}
-              disabled={running || providerOptions.length === 0}
-            >
-              Run Prove
-            </button>
-            <button type="button" className="btn-secondary" onClick={clearLog}>
-              Clear
-            </button>
-          </div>
-
-          <DemoLog entries={logEntries} />
         </div>
       </main>
     </>
