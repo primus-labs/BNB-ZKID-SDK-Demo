@@ -379,7 +379,7 @@ export default function App() {
 
       {proofModalOpen ? (
         <div
-          className="modal-backdrop"
+          className="modal-backdrop modal-backdrop--progress"
           role="presentation"
           onClick={(e) => {
             if (!running && finalProofResult && e.target === e.currentTarget) {

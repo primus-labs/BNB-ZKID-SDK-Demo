@@ -12,10 +12,18 @@ export function DemoLog({ entries }: DemoLogProps) {
         .map((entry, i) => {
           const isError = entry.text.startsWith("error:");
           const isResult = entry.text.startsWith("prove:");
+          if (isResult) {
+            return (
+              <div key={i} className="log-result-wrap">
+                <h4 className="log-result__title">Result</h4>
+                <div className="log-line log-line--result">{entry.text}</div>
+              </div>
+            );
+          }
           return (
             <div
               key={i}
-              className={`log-line ${isError ? "log-line--error" : ""} ${isResult ? "log-line--result" : ""}`}
+              className={`log-line ${isError ? "log-line--error" : ""}`}
             >
               {entry.text}
             </div>
