@@ -15,10 +15,15 @@ import {
 import { flattenProviderOptions, formatError } from "./sdk-demo-utils";
 import { useMetaMaskWallet } from "./use-metamask-wallet";
 
+const EXTENSION_INSTALL_URL = "https://github.com/primus-labs/BNB-ZKID-SDK/tree/main/extension";
+
 type AlertModalState = {
   title: string;
+  subtitle?: string;
   description: string;
   detail?: string;
+  extensionBullets?: { ok: boolean; text: string }[];
+  showEnableExtension?: boolean;
 };
 
 const GATEWAY_CONFIG_URL = "https://zk-id.brevis.network/v1/config";
@@ -46,24 +51,16 @@ function formatInitFailureForModal(error: unknown): AlertModalState {
     };
     const primusHint = e.details?.primus?.message;
     if (e.code === "00000") {
-      const hasPrimusRuntimeHint = detectPrimusRuntimeHint();
-      const debugText = safeStringifyError(error);
-      const suggestLocalhost =
-        window.location.hostname === "127.0.0.1"
-          ? `Try opening this page via localhost instead: http://localhost:${window.location.port || "5173"}/`
-          : undefined;
       return {
-        title: hasPrimusRuntimeHint ? "Primus extension unavailable" : "Primus extension required",
-        description: hasPrimusRuntimeHint
-          ? "Primus extension seems installed, but the current page cannot access it. Please refresh this tab, confirm extension permissions, and try again."
-          : e.message || "Install the Primus browser extension to generate zkTLS proofs.",
-        detail:
-          suggestLocalhost ||
-          primusHint ||
-          debugText ||
-          (hasPrimusRuntimeHint
-            ? "If extension popup works but page still fails, reopen browser and ensure this site is allowed by the extension."
-            : undefined)
+        title: "Primus Extension Required",
+        subtitle: "Assist in verifying your data",
+        description: "",
+        extensionBullets: [
+          { ok: true, text: "Assist you to generate ZK proofs of your data." },
+          { ok: true, text: "Maintain full privacy throughout the verification process." },
+          { ok: false, text: "Your data is never accessed or tracked by Primus." }
+        ],
+        showEnableExtension: true
       };
     }
     return {
@@ -88,24 +85,6 @@ function formatErrorForLogWithoutDetails(error: unknown): string {
     }
   }
   return formatError(error);
-}
-
-function safeStringifyError(error: unknown): string | undefined {
-  try {
-    const text = JSON.stringify(error, null, 2);
-    return typeof text === "string" ? text : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
-function detectPrimusRuntimeHint(): boolean {
-  const w = window as Window & {
-    primus?: unknown;
-    PrimusZKTLS?: unknown;
-    zka?: unknown;
-  };
-  return Boolean(w.primus || w.PrimusZKTLS || w.zka);
 }
 
 function isInitFailureResult(result: InitResult): result is Extract<InitResult, { success: false }> {
@@ -465,29 +444,84 @@ export default function App() {
           }}
         >
           <div
-            className="modal-dialog"
+            className={`modal-dialog${alertModal.extensionBullets?.length ? " modal-dialog--extension" : ""}`}
             role="alertdialog"
             aria-modal="true"
-            aria-labelledby="demo-alert-title"
-            aria-describedby="demo-alert-desc"
+            aria-labelledby={
+              alertModal.subtitle ? "demo-alert-title demo-alert-subtitle" : "demo-alert-title"
+            }
+            aria-describedby={(() => {
+              const parts: string[] = [];
+              if (alertModal.description.trim()) {
+                parts.push("demo-alert-desc");
+              }
+              if (alertModal.extensionBullets?.length) {
+                parts.push("demo-alert-bullets");
+              }
+              return parts.length > 0 ? parts.join(" ") : undefined;
+            })()}
           >
-            <div className="modal-dialog__header">
-              <span className="modal-dialog__icon" aria-hidden>
-                !
-              </span>
-              <h3 id="demo-alert-title" className="modal-dialog__title">
-                {alertModal.title}
-              </h3>
+            <div
+              className={`modal-dialog__header${alertModal.subtitle ? " modal-dialog__header--stack" : ""}`}
+            >
+              {!alertModal.showEnableExtension ? (
+                <span className="modal-dialog__icon" aria-hidden>
+                  !
+                </span>
+              ) : null}
+              <div className="modal-dialog__head-text">
+                <h3 id="demo-alert-title" className="modal-dialog__title">
+                  {alertModal.title}
+                </h3>
+                {alertModal.subtitle ? (
+                  <p id="demo-alert-subtitle" className="modal-dialog__subtitle">
+                    {alertModal.subtitle}
+                  </p>
+                ) : null}
+              </div>
             </div>
-            <p id="demo-alert-desc" className="modal-dialog__body">
-              {alertModal.description}
-            </p>
+            {alertModal.description.trim() ? (
+              <p id="demo-alert-desc" className="modal-dialog__body">
+                {alertModal.description}
+              </p>
+            ) : null}
+            {alertModal.extensionBullets && alertModal.extensionBullets.length > 0 ? (
+              <ul id="demo-alert-bullets" className="modal-dialog__extension-box">
+                {alertModal.extensionBullets.map((item, idx) => (
+                  <li key={idx} className="modal-dialog__extension-item">
+                    <span
+                      className={
+                        item.ok ? "modal-dialog__mark modal-dialog__mark--ok" : "modal-dialog__mark modal-dialog__mark--no"
+                      }
+                      aria-hidden
+                    >
+                      {item.ok ? "✓" : "✕"}
+                    </span>
+                    <span>{item.text}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
             {alertModal.detail ? <p className="modal-dialog__detail">{alertModal.detail}</p> : null}
-            <div className="modal-dialog__actions">
-              <button type="button" className="modal-dialog__btn" onClick={closeModal}>
-                OK
-              </button>
-            </div>
+            {alertModal.showEnableExtension ? (
+              <div className="modal-dialog__enable-wrap">
+                <a
+                  className="modal-dialog__btn-enable"
+                  href={EXTENSION_INSTALL_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Enable Extension
+                </a>
+              </div>
+            ) : null}
+            {!alertModal.showEnableExtension ? (
+              <div className="modal-dialog__actions">
+                <button type="button" className="modal-dialog__btn" onClick={closeModal}>
+                  OK
+                </button>
+              </div>
+            ) : null}
           </div>
         </div>
       ) : null}

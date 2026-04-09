@@ -418,6 +418,11 @@ button:disabled {
   animation: modal-pop-in 0.22s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+.modal-dialog--extension {
+  max-height: min(90vh, 34rem);
+  width: min(100%, 26rem);
+}
+
 @keyframes modal-pop-in {
   from {
     opacity: 0;
@@ -434,6 +439,23 @@ button:disabled {
   align-items: center;
   gap: 0.7rem;
   margin-bottom: 0.85rem;
+}
+
+.modal-dialog__header--stack {
+  align-items: flex-start;
+}
+
+.modal-dialog__head-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.modal-dialog__subtitle {
+  margin: 0.25rem 0 0;
+  font-size: 0.78rem;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--muted);
 }
 
 .modal-dialog__icon {
@@ -495,6 +517,80 @@ button:disabled {
   background: #fbf8f4;
   border: 1px solid #ece4dc;
   border-radius: 0.65rem;
+}
+
+.modal-dialog__extension-box {
+  margin: 0.75rem 0 0;
+  padding: 0.65rem 0.75rem;
+  list-style: none;
+  display: grid;
+  gap: 0.5rem;
+  background: #faf6ef;
+  border: 1px solid #e8dfd2;
+  border-radius: 0.65rem;
+}
+
+.modal-dialog__extension-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.45;
+  color: #4a3f35;
+}
+
+.modal-dialog__mark {
+  flex-shrink: 0;
+  width: 1.05rem;
+  height: 1.05rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.62rem;
+  font-weight: 700;
+  line-height: 1;
+  border-radius: 999px;
+  margin-top: 0.1rem;
+}
+
+.modal-dialog__mark--ok {
+  color: #0a7a5a;
+  background: #d5f1e5;
+  border: 1px solid #9dd8bd;
+}
+
+.modal-dialog__mark--no {
+  color: #b91c1c;
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
+}
+
+.modal-dialog__enable-wrap {
+  display: flex;
+  justify-content: center;
+  margin-top: 1rem;
+}
+
+.modal-dialog__btn-enable {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 0.62rem 1.15rem;
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.88rem;
+  cursor: pointer;
+  text-decoration: none;
+  background: linear-gradient(135deg, #1f1a14, #2e2a22);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(31, 26, 20, 0.2);
+}
+
+.modal-dialog__btn-enable:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(31, 26, 20, 0.24);
 }
 
 .modal-dialog--progress {
@@ -573,6 +669,10 @@ button:disabled {
   display: flex;
   justify-content: flex-end;
   gap: 0.5rem;
+}
+
+.modal-dialog__enable-wrap + .modal-dialog__actions {
+  margin-top: 0.7rem;
 }
 
 .modal-dialog__btn {
