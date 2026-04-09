@@ -17,6 +17,9 @@ import { useMetaMaskWallet } from "./use-metamask-wallet";
 
 const EXTENSION_INSTALL_URL = "https://github.com/primus-labs/BNB-ZKID-SDK/tree/main/extension";
 
+/** Set when user clicks “Enable Extension”; cleared after a reload once `window.primus` is present. */
+const EXTENSION_INSTALL_PENDING_KEY = "bnbzkid-demo-extension-install-pending";
+
 type AlertModalState = {
   title: string;
   subtitle?: string;
@@ -42,6 +45,48 @@ type GatewayConfigResponse = {
   providers?: unknown;
 };
 
+function isPrimusExtensionPresent(): boolean {
+  return Boolean((window as Window & { primus?: unknown }).primus);
+}
+
+function readExtensionInstallPending(): boolean {
+  try {
+    return localStorage.getItem(EXTENSION_INSTALL_PENDING_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function setExtensionInstallPending(): void {
+  try {
+    localStorage.setItem(EXTENSION_INSTALL_PENDING_KEY, "1");
+  } catch {
+    /* private / blocked storage */
+  }
+}
+
+function clearExtensionInstallPending(): void {
+  try {
+    localStorage.removeItem(EXTENSION_INSTALL_PENDING_KEY);
+  } catch {
+    /* private / blocked storage */
+  }
+}
+
+function primusExtensionRequiredModal(): AlertModalState {
+  return {
+    title: "Primus Extension Required",
+    subtitle: "Assist in verifying your data",
+    description: "",
+    extensionBullets: [
+      { ok: true, text: "Assist you to generate ZK proofs of your data." },
+      { ok: true, text: "Maintain full privacy throughout the verification process." },
+      { ok: false, text: "Your data is never accessed or tracked by Primus." }
+    ],
+    showEnableExtension: true
+  };
+}
+
 function formatInitFailureForModal(error: unknown): AlertModalState {
   if (error !== null && typeof error === "object" && "message" in error) {
     const e = error as {
@@ -51,17 +96,7 @@ function formatInitFailureForModal(error: unknown): AlertModalState {
     };
     const primusHint = e.details?.primus?.message;
     if (e.code === "00000") {
-      return {
-        title: "Primus Extension Required",
-        subtitle: "Assist in verifying your data",
-        description: "",
-        extensionBullets: [
-          { ok: true, text: "Assist you to generate ZK proofs of your data." },
-          { ok: true, text: "Maintain full privacy throughout the verification process." },
-          { ok: false, text: "Your data is never accessed or tracked by Primus." }
-        ],
-        showEnableExtension: true
-      };
+      return primusExtensionRequiredModal();
     }
     return {
       title: "Could not initialize SDK",
@@ -117,6 +152,51 @@ export default function App() {
 
   const closeModal = useCallback(() => {
     setAlertModal(null);
+  }, []);
+
+  /**
+   * After `location.reload()` (triggered when user returns to the tab with a pending install flag):
+   * - `window.primus` present → clear flag, do not show the install modal.
+   * - still missing → keep flag and show the install modal again.
+   */
+  useEffect(() => {
+    if (!readExtensionInstallPending()) {
+      return;
+    }
+    if (isPrimusExtensionPresent()) {
+      clearExtensionInstallPending();
+      return;
+    }
+    setAlertModal(primusExtensionRequiredModal());
+  }, []);
+
+  /**
+   * User opened the install link in another tab; when this document becomes visible again, reload so
+   * the extension can inject into this page. Post-reload handling uses `EXTENSION_INSTALL_PENDING_KEY`.
+   *
+   * We only reload after a prior `hidden` transition so the initial `visible` state on a fresh load
+   * does not cause a reload loop while the pending flag is still set.
+   */
+  useEffect(() => {
+    let sawHidden = false;
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        sawHidden = true;
+        return;
+      }
+      if (document.visibilityState !== "visible") {
+        return;
+      }
+      if (!sawHidden) {
+        return;
+      }
+      if (!readExtensionInstallPending()) {
+        return;
+      }
+      window.location.reload();
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
   }, []);
 
   useEffect(() => {
@@ -510,6 +590,9 @@ export default function App() {
                   href={EXTENSION_INSTALL_URL}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={() => {
+                    setExtensionInstallPending();
+                  }}
                 >
                   Enable Extension
                 </a>
