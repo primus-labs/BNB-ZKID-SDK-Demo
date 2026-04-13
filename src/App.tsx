@@ -1,11 +1,21 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { bscTestnet } from "viem/chains";
+import { getAddress } from "viem";
 import {
   BnbZkIdClient,
   BnbZkIdProveError,
   type InitResult,
-  type ProveInput
+  type ProveInput,
+  type ProveSuccessResult
 } from "@primuslabs/bnb-zkid-sdk";
+import { getBnbTestnetIdentityRegistryAddress } from "./demo-registry-config";
+import {
+  decodeDataBlobByIdentityProperty,
+  identityPropertyIdToChainBytes32,
+  normalizeProveProviderIdToBytes32
+} from "./decode-attestation";
 import { DemoLog } from "./demo-log";
+import { fetchLatestIdentityPropertyFromRegistry } from "./fetch-latest-identity-property";
 import {
   FALLBACK_PROVIDER_OPTIONS,
   SDK_DEMO_APP_ID,
@@ -136,6 +146,10 @@ async function initClientWithRetry(client: BnbZkIdClient): Promise<InitResult> {
   return client.init({ appId: SDK_DEMO_APP_ID });
 }
 
+function jsonWithBigInt(value: unknown): string {
+  return JSON.stringify(value, (_key, v) => (typeof v === "bigint" ? v.toString() : v), 2);
+}
+
 export default function App() {
   const [providerOptions, setProviderOptions] = useState<ProviderOption[]>([]);
   const [providersLoading, setProvidersLoading] = useState(true);
@@ -145,20 +159,30 @@ export default function App() {
   const [finalProofResult, setFinalProofResult] = useState<string | null>(null);
   const [alertModal, setAlertModal] = useState<AlertModalState | null>(null);
   const [proofModalOpen, setProofModalOpen] = useState(false);
+  const [lastProveSuccess, setLastProveSuccess] = useState<ProveSuccessResult | null>(null);
+  const [decodeRegistryLoading, setDecodeRegistryLoading] = useState(false);
+  const [decodeError, setDecodeError] = useState<string | null>(null);
+  const [decodeOutput, setDecodeOutput] = useState<string | null>(null);
 
   const clientRef = useRef<BnbZkIdClient | null>(null);
   const { userAddress, setUserAddress, walletError, isWalletConnected, connectWallet, disconnectWallet } =
     useMetaMaskWallet();
 
+  const canDecodeViaRegistry = useMemo(() => {
+    const r = lastProveSuccess;
+    if (!r?.walletAddress?.trim() || !r.providerId?.trim() || !r.identityPropertyId?.trim()) {
+      return false;
+    }
+    return (
+      normalizeProveProviderIdToBytes32(r.providerId) !== undefined &&
+      identityPropertyIdToChainBytes32(r.identityPropertyId) !== undefined
+    );
+  }, [lastProveSuccess]);
+
   const closeModal = useCallback(() => {
     setAlertModal(null);
   }, []);
 
-  /**
-   * After `location.reload()` (triggered when user returns to the tab with a pending install flag):
-   * - `window.primus` present → clear flag, do not show the install modal.
-   * - still missing → keep flag and show the install modal again.
-   */
   useEffect(() => {
     if (!readExtensionInstallPending()) {
       return;
@@ -170,13 +194,6 @@ export default function App() {
     setAlertModal(primusExtensionRequiredModal());
   }, []);
 
-  /**
-   * User opened the install link in another tab; when this document becomes visible again, reload so
-   * the extension can inject into this page. Post-reload handling uses `EXTENSION_INSTALL_PENDING_KEY`.
-   *
-   * We only reload after a prior `hidden` transition so the initial `visible` state on a fresh load
-   * does not cause a reload loop while the pending flag is still set.
-   */
   useEffect(() => {
     let sawHidden = false;
     const onVisibilityChange = () => {
@@ -282,6 +299,10 @@ export default function App() {
     setLogEntries([]);
     setProgressStatusTrail([]);
     setFinalProofResult(null);
+    setLastProveSuccess(null);
+    setDecodeError(null);
+    setDecodeOutput(null);
+    setDecodeRegistryLoading(false);
     setRunning(true);
     setProofModalOpen(true);
 
@@ -315,7 +336,9 @@ export default function App() {
         `On-chain result: ${proveResult.status}${proveResult.proofRequestId ? ` (ProofRequestId: ${proveResult.proofRequestId})` : ""}`
       );
       appendLog(`prove: ${JSON.stringify(proveResult, null, 2)}`);
+      setLastProveSuccess(proveResult);
     } catch (error) {
+      setLastProveSuccess(null);
       if (error instanceof BnbZkIdProveError) {
         appendLog(`error: ${formatErrorForLogWithoutDetails(error.toJSON())}`);
       } else {
@@ -326,6 +349,49 @@ export default function App() {
       setRunning(false);
     }
   };
+
+  const handleDecodeViaRegistry = useCallback(async () => {
+    const res = lastProveSuccess;
+    if (!res) {
+      return;
+    }
+    const registry = getBnbTestnetIdentityRegistryAddress();
+    const providerHex = normalizeProveProviderIdToBytes32(res.providerId);
+    const identityHex = identityPropertyIdToChainBytes32(res.identityPropertyId);
+    if (providerHex === undefined || identityHex === undefined) {
+      return;
+    }
+    setDecodeRegistryLoading(true);
+    setDecodeError(null);
+    setDecodeOutput(null);
+    try {
+      const wallet = getAddress(res.walletAddress as `0x${string}`);
+      const { timestamp, dataBlob } = await fetchLatestIdentityPropertyFromRegistry({
+        attestation: { chainId: bscTestnet.id, registry },
+        wallet,
+        providerId: providerHex,
+        identityProperty: identityHex
+      });
+      const blobDecoded = decodeDataBlobByIdentityProperty(identityHex, dataBlob);
+      setDecodeOutput(
+        jsonWithBigInt({
+          via: "getLatestIdentityProperty",
+          registry,
+          chainId: bscTestnet.id,
+          registryRead: {
+            timestamp: timestamp.toString(),
+            dataBlob
+          },
+          dataBlobDecoded: blobDecoded
+        })
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setDecodeError(msg);
+    } finally {
+      setDecodeRegistryLoading(false);
+    }
+  }, [lastProveSuccess]);
 
   const handleProviderClick = async (selectedOption: ProviderOption) => {
     if (running) {
@@ -355,7 +421,6 @@ export default function App() {
       }
     }
 
-    // Always initialize before prove(). SDK throws if prove is called before successful init.
     const initResult = await initClientWithRetry(client);
     if (!initResult.success) {
       setAlertModal(formatInitFailureForModal(initResult.error));
@@ -453,6 +518,12 @@ export default function App() {
 
           <DemoLog
             entries={logEntries}
+            lastProveSuccess={lastProveSuccess}
+            decodeRegistryLoading={decodeRegistryLoading}
+            canDecodeViaRegistry={canDecodeViaRegistry}
+            decodeError={decodeError}
+            decodeOutput={decodeOutput}
+            onDecodeViaRegistry={() => void handleDecodeViaRegistry()}
           />
         </div>
       </main>

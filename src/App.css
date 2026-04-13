@@ -370,6 +370,58 @@ button:disabled {
   margin-top: 0;
 }
 
+.log-decode {
+  margin-top: 0.65rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.log-decode__btns {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.4rem;
+}
+
+.log-decode__btn {
+  align-self: flex-start;
+}
+
+.log-decode__hint {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: #6b7a8f;
+}
+
+.log-decode__error {
+  margin: 0;
+  padding: 0.55rem 0.65rem;
+  border-radius: 0.65rem;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: #862f2f;
+  background: #fdf1f1;
+  border: 1px solid #f0cccc;
+  white-space: pre-wrap;
+}
+
+.log-decode__output {
+  margin: 0;
+  padding: 0.65rem 0.75rem;
+  max-height: 18rem;
+  overflow: auto;
+  border-radius: 0.75rem;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: #2c3a4d;
+  background: #f8fafc;
+  border: 1px solid #d8e5f8;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .log-line--error,
 .log-line--result {
   margin-top: 0.45rem;
