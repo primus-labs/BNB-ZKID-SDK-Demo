@@ -364,10 +364,19 @@ export function decodeDataBlobByIdentityProperty(identityProperty: string, dataB
       }
     }
     try {
-      const [kycLevel, spotTradeHistoryLast6Months] = decodeAbiParameters(
-        [{ type: "string" }, { type: "uint256" }],
+      const [profile] = decodeAbiParameters(
+        [
+          {
+            type: "tuple",
+            components: [
+              { name: "kycLevel", type: "string" },
+              { name: "spotTradeHistoryLast6Months", type: "uint256" },
+            ],
+          },
+        ],
         dataBlob
       );
+      const { kycLevel, spotTradeHistoryLast6Months } = profile;
       return { type: "BinanceKycTradingProfileV1", kycLevel, spotTradeHistoryLast6Months };
     } catch {
       return {
@@ -393,10 +402,19 @@ export function decodeDataBlobByIdentityProperty(identityProperty: string, dataB
       }
     }
     try {
-      const [kycLevel, tradeHistoryLast6Months] = decodeAbiParameters(
-        [{ type: "string" }, { type: "uint256" }],
+      const [profile] = decodeAbiParameters(
+        [
+          {
+            type: "tuple",
+            components: [
+              { name: "kycLevel", type: "string" },
+              { name: "tradeHistoryLast6Months", type: "uint256" },
+            ],
+          },
+        ],
         dataBlob
       );
+      const { kycLevel, tradeHistoryLast6Months } = profile;
       return { type: "OkxKycTradingProfileV1", kycLevel, tradeHistoryLast6Months };
     } catch {
       return {
@@ -423,10 +441,19 @@ export function decodeDataBlobByIdentityProperty(identityProperty: string, dataB
       }
     }
     try {
-      const [accountEarliestYear, contributionsLastYear] = decodeAbiParameters(
-        [{ type: "uint256" }, { type: "uint256" }],
+      const [profile] = decodeAbiParameters(
+        [
+          {
+            type: "tuple",
+            components: [
+              { name: "accountEarliestYear", type: "uint256" },
+              { name: "contributionsLastYear", type: "uint256" },
+            ],
+          },
+        ],
         dataBlob
       );
+      const { accountEarliestYear, contributionsLastYear } = profile;
       return { type: "GithubAccountContributionProfileV1", accountEarliestYear, contributionsLastYear };
     } catch {
       return {
@@ -453,10 +480,20 @@ export function decodeDataBlobByIdentityProperty(identityProperty: string, dataB
       }
     }
     try {
-      const [accountEarliestYear, limitedAccountStatus, gameLibraryValue] = decodeAbiParameters(
-        [{ type: "uint256" }, { type: "string" }, { type: "uint256" }],
+      const [profile] = decodeAbiParameters(
+        [
+          {
+            type: "tuple",
+            components: [
+              { name: "accountEarliestYear", type: "uint256" },
+              { name: "limitedAccountStatus", type: "string" },
+              { name: "gameLibraryValue", type: "uint256" },
+            ],
+          },
+        ],
         dataBlob
       );
+      const { accountEarliestYear, limitedAccountStatus, gameLibraryValue } = profile;
       return { type: "SteamAccountValueProfileV1", accountEarliestYear, limitedAccountStatus, gameLibraryValue };
     } catch {
       return {
@@ -483,20 +520,27 @@ export function decodeDataBlobByIdentityProperty(identityProperty: string, dataB
       }
     }
     try {
-      const [accountEarliestYear, primeMemberStatus, ordersCountByYear] = decodeAbiParameters(
+      const [profile] = decodeAbiParameters(
         [
-          { type: "uint256" },
-          { type: "string" },
           {
-            type: "tuple[]",
+            type: "tuple",
             components: [
-              { type: "uint256", name: "year" },
-              { type: "uint256", name: "count" },
+              { name: "accountEarliestYear", type: "uint256" },
+              { name: "primeMemberStatus", type: "string" },
+              {
+                name: "ordersCountByYear",
+                type: "tuple[]",
+                components: [
+                  { type: "uint256", name: "year" },
+                  { type: "uint256", name: "count" },
+                ],
+              },
             ],
           },
         ],
         dataBlob
       );
+      const { accountEarliestYear, primeMemberStatus, ordersCountByYear } = profile;
       return { type: "AmazonMembershipOrderProfileV1", accountEarliestYear, primeMemberStatus, ordersCountByYear };
     } catch {
       return {
