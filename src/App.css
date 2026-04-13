@@ -257,8 +257,6 @@ button:disabled {
 }
 
 .log {
-  max-height: min(70vh, 36rem);
-  overflow: auto;
   margin: 0;
   padding: 0.75rem 0 0;
   font-size: 0.9rem;
@@ -384,8 +382,11 @@ button:disabled {
   gap: 0.4rem;
 }
 
-.log-decode__btn {
+button.btn-secondary.log-decode__btn {
   align-self: flex-start;
+  padding: 0.38rem 0.85rem;
+  font-size: 0.78rem;
+  line-height: 1.25;
 }
 
 .log-decode__hint {
@@ -409,17 +410,9 @@ button:disabled {
 
 .log-decode__output {
   margin: 0;
-  padding: 0.65rem 0.75rem;
-  max-height: 18rem;
-  overflow: auto;
-  border-radius: 0.75rem;
-  font-size: 0.72rem;
-  line-height: 1.45;
-  color: #2c3a4d;
-  background: #f8fafc;
-  border: 1px solid #d8e5f8;
   white-space: pre-wrap;
   word-break: break-word;
+  font: inherit;
 }
 
 .log-line--error,

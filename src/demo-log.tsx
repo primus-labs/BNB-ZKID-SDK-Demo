@@ -55,7 +55,7 @@ export function DemoLog({
                     </div>
                   ) : null}
                   {decodeOutput ? (
-                    <pre className="log-decode__output">{decodeOutput}</pre>
+                    <pre className="log-line log-line--result log-decode__output">{decodeOutput}</pre>
                   ) : null}
                 </div>
               </div>
