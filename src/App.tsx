@@ -4,7 +4,7 @@ import { getAddress } from "viem";
 import {
   BnbZkIdClient,
   BnbZkIdProveError,
-  type InitResult,
+  type InitSuccessResult,
   type ProveInput,
   type ProveSuccessResult
 } from "@primuslabs/bnb-zkid-sdk";
@@ -98,6 +98,15 @@ function primusExtensionRequiredModal(): AlertModalState {
 }
 
 function formatInitFailureForModal(error: unknown): AlertModalState {
+  if (error instanceof BnbZkIdProveError) {
+    if (error.proveCode === "00000") {
+      return primusExtensionRequiredModal();
+    }
+    return {
+      title: "Could not initialize SDK",
+      description: error.message || "Something went wrong during initialization."
+    };
+  }
   if (error !== null && typeof error === "object" && "message" in error) {
     const e = error as {
       code?: string;
@@ -132,18 +141,34 @@ function formatErrorForLogWithoutDetails(error: unknown): string {
   return formatError(error);
 }
 
-function isInitFailureResult(result: InitResult): result is Extract<InitResult, { success: false }> {
-  return result.success === false;
+type InitClientOutcome = InitSuccessResult | { success: false; error: unknown };
+
+function getProveErrorCode(error: unknown): string | undefined {
+  if (error instanceof BnbZkIdProveError) {
+    return error.proveCode;
+  }
+  if (error !== null && typeof error === "object" && "code" in error) {
+    const c = (error as { code?: unknown }).code;
+    return typeof c === "string" ? c : undefined;
+  }
+  return undefined;
 }
 
-async function initClientWithRetry(client: BnbZkIdClient): Promise<InitResult> {
-  const first = await client.init({ appId: SDK_DEMO_APP_ID });
-  if (!isInitFailureResult(first) || first.error?.code !== "00000") {
-    return first;
+async function initClientWithRetry(client: BnbZkIdClient): Promise<InitClientOutcome> {
+  try {
+    return await client.init({ appId: SDK_DEMO_APP_ID });
+  } catch (firstError) {
+    if (getProveErrorCode(firstError) !== "00000") {
+      return { success: false, error: firstError };
+    }
+    // Give the extension injection pipeline a brief chance to settle before final verdict.
+    await new Promise((resolve) => window.setTimeout(resolve, 450));
+    try {
+      return await client.init({ appId: SDK_DEMO_APP_ID });
+    } catch (secondError) {
+      return { success: false, error: secondError };
+    }
   }
-  // Give the extension injection pipeline a brief chance to settle before final verdict.
-  await new Promise((resolve) => window.setTimeout(resolve, 450));
-  return client.init({ appId: SDK_DEMO_APP_ID });
 }
 
 function jsonWithBigInt(value: unknown): string {
@@ -231,16 +256,19 @@ export default function App() {
         }
 
         if (rows.length === 0) {
-          const initResult = await client.init({
-            appId: SDK_DEMO_APP_ID
-          });
-
-          if (cancelled) {
-            return;
-          }
-
-          if (initResult.success) {
+          try {
+            const initResult = await client.init({
+              appId: SDK_DEMO_APP_ID
+            });
+            if (cancelled) {
+              return;
+            }
             rows = flattenProviderOptions(initResult.providers);
+          } catch (initErr) {
+            if (cancelled) {
+              return;
+            }
+            console.error("SDK init error (bootstrap providers):", initErr);
           }
         }
         setProviderOptions(rows);
@@ -249,7 +277,7 @@ export default function App() {
           return;
         }
         setProviderOptions([]);
-        console.error("SDK init error:", err);
+        console.error("SDK bootstrap error:", err);
       } finally {
         if (!cancelled) {
           setProvidersLoading(false);
