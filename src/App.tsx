@@ -25,7 +25,8 @@ import {
 import { flattenProviderOptions, formatError } from "./sdk-demo-utils";
 import { useMetaMaskWallet } from "./use-metamask-wallet";
 
-const EXTENSION_INSTALL_URL = "https://github.com/primus-labs/BNB-ZKID-SDK/tree/main/extension";
+const EXTENSION_INSTALL_URL =
+  "https://chromewebstore.google.com/detail/primus/oeiomhmbaapihbilkfkhmlajkeegnjhe";
 
 /** Set when user clicks “Enable Extension”; cleared after a reload once `window.primus` is present. */
 const EXTENSION_INSTALL_PENDING_KEY = "bnbzkid-demo-extension-install-pending";

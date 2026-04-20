@@ -12,11 +12,10 @@ Follow the steps in order to run the demo successfully.
 
 The full `prove` flow depends on the Primus extension.
 
-Download extension package from:
-<https://github.com/primus-labs/BNB-ZKID-SDK/tree/main/extension>
+Install from the Chrome Web Store:
+<https://chromewebstore.google.com/detail/primus/oeiomhmbaapihbilkfkhmlajkeegnjhe>
 
-After downloading, install/load the extension in your browser, then make sure the
-extension is enabled before opening this demo page.
+After installation, make sure the extension is enabled before opening this demo page.
 
 ### 2) Install dependencies
 
