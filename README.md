@@ -6,39 +6,38 @@ using the Brevis Gateway + Primus SDK flow.
 
 ## Quick Start
 
-Follow the steps in order to run the demo successfully.
+Follow the steps below to run the demo locally.
 
-### 1) Install Primus browser extension first
-
-The full `prove` flow depends on the Primus extension.
-
-Install from the Chrome Web Store:
-<https://chromewebstore.google.com/detail/primus/oeiomhmbaapihbilkfkhmlajkeegnjhe>
-
-After installation, make sure the extension is enabled before opening this demo page.
-
-### 2) Install dependencies
+### 1) Install dependencies
 
 ```bash
 npm install
 ```
 
-### 3) Start the demo
+### 2) Start the demo
 
 ```bash
 npm run dev
 ```
 
 Open the printed URL (default: `http://127.0.0.1:5173`).
-This demo is configured with `--host 0.0.0.0`, so you can also access it from
-another device in the same LAN using your machine IP, for example:
-`http://192.168.x.x:5173`.
 
 ## First-time usage flow (recommended)
 
 1. Open the demo page after `npm run dev`.
 2. Connect MetaMask when prompted.
 3. Keep or edit the auto-filled user address.
-4. Select provider and trigger the prove flow.
+4. Select a provider and start the prove flow.
+5. If the SDK reports that the Primus extension is missing or disabled, follow the in-app install prompt.
 
-If the extension is not installed/enabled, the prove flow cannot complete.
+## Primus Extension
+
+Users do not need to install the Primus extension before opening the demo.
+
+During the real `prove` flow, the demo calls `client.init()` before continuing. If `init()` throws `BnbZkIdProveError` with code `00000`, the demo treats it as "Primus Extension not detected" and shows the in-app install prompt.
+
+That install prompt directs the user to the Chrome Web Store:
+
+<https://chromewebstore.google.com/detail/primus/oeiomhmbaapihbilkfkhmlajkeegnjhe>
+
+If the extension is already installed and enabled, the prove flow continues normally.
