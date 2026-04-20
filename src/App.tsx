@@ -35,6 +35,8 @@ type AlertModalState = {
   title: string;
   subtitle?: string;
   description: string;
+  /** Shown when {@link description} had a raw Chrome Web Store URL stripped out. */
+  storeLink?: { href: string; label: string };
   detail?: string;
   extensionBullets?: { ok: boolean; text: string }[];
   showEnableExtension?: boolean;
@@ -98,14 +100,86 @@ function primusExtensionRequiredModal(): AlertModalState {
   };
 }
 
-function formatInitFailureForModal(error: unknown): AlertModalState {
+function getProveErrorCode(error: unknown): string | undefined {
   if (error instanceof BnbZkIdProveError) {
-    if (error.proveCode === "00000") {
-      return primusExtensionRequiredModal();
+    return error.proveCode;
+  }
+  if (error !== null && typeof error === "object") {
+    const o = error as Record<string, unknown>;
+    if (typeof o.proveCode === "string") {
+      return o.proveCode;
     }
+    if ("code" in o) {
+      const c = o.code;
+      return typeof c === "string" ? c : undefined;
+    }
+  }
+  return undefined;
+}
+
+/** Handles duplicate package instances where `instanceof BnbZkIdProveError` may be false. */
+function isExtensionMissingInitError(error: unknown): boolean {
+  if (error instanceof BnbZkIdProveError && error.proveCode === "00000") {
+    return true;
+  }
+  const code = getProveErrorCode(error);
+  if (code === "00000") {
+    return true;
+  }
+  const msg =
+    error !== null &&
+    typeof error === "object" &&
+    "message" in error &&
+    typeof (error as { message: unknown }).message === "string"
+      ? (error as { message: string }).message
+      : typeof error === "string"
+        ? error
+        : "";
+  return (
+    /chromewebstore\.google\.com\/detail\/primus/i.test(msg) ||
+    /primus extension not detected/i.test(msg)
+  );
+}
+
+const CHROME_STORE_URL_IN_PARENS_RE =
+  /\s*\(\s*https:\/\/chromewebstore\.google\.com\/detail\/primus\/[a-z0-9]+\s*\)/gi;
+const CHROME_STORE_URL_BARE_RE =
+  /https:\/\/chromewebstore\.google\.com\/detail\/primus\/[a-z0-9]+/gi;
+
+/**
+ * Removes inlined Chrome Web Store URLs from SDK copy and returns a short label link instead.
+ */
+function beautifyDescriptionWithStoreLink(raw: string): Pick<AlertModalState, "description" | "storeLink"> {
+  const trimmed = raw.trim();
+  const hasParenUrl = CHROME_STORE_URL_IN_PARENS_RE.test(trimmed);
+  CHROME_STORE_URL_IN_PARENS_RE.lastIndex = 0;
+  const hasBareUrl = CHROME_STORE_URL_BARE_RE.test(trimmed);
+  CHROME_STORE_URL_BARE_RE.lastIndex = 0;
+  if (!hasParenUrl && !hasBareUrl) {
+    return { description: trimmed };
+  }
+  let description = trimmed
+    .replace(CHROME_STORE_URL_IN_PARENS_RE, "")
+    .replace(CHROME_STORE_URL_BARE_RE, "")
+    .trim();
+  description = description.replace(/\s+,/g, ",").replace(/\s{2,}/g, " ").trim();
+  if (description === "") {
+    description = "Please install and enable the Primus extension, then try again.";
+  }
+  return {
+    description,
+    storeLink: { href: EXTENSION_INSTALL_URL, label: "Open Chrome Web Store" }
+  };
+}
+
+function formatInitFailureForModal(error: unknown): AlertModalState {
+  if (isExtensionMissingInitError(error)) {
+    return primusExtensionRequiredModal();
+  }
+  if (error instanceof BnbZkIdProveError) {
     return {
       title: "Could not initialize SDK",
-      description: error.message || "Something went wrong during initialization."
+      ...beautifyDescriptionWithStoreLink(error.message || "Something went wrong during initialization.")
     };
   }
   if (error !== null && typeof error === "object" && "message" in error) {
@@ -115,18 +189,17 @@ function formatInitFailureForModal(error: unknown): AlertModalState {
       details?: { primus?: { message?: string; code?: string } };
     };
     const primusHint = e.details?.primus?.message;
-    if (e.code === "00000") {
-      return primusExtensionRequiredModal();
-    }
     return {
       title: "Could not initialize SDK",
-      description: e.message || "Something went wrong during initialization.",
+      ...beautifyDescriptionWithStoreLink(e.message || "Something went wrong during initialization."),
       detail: primusHint
     };
   }
   return {
     title: "Could not initialize SDK",
-    description: typeof error === "string" ? error : "Unknown error."
+    ...beautifyDescriptionWithStoreLink(
+      typeof error === "string" ? error : "Unknown error."
+    )
   };
 }
 
@@ -143,17 +216,6 @@ function formatErrorForLogWithoutDetails(error: unknown): string {
 }
 
 type InitClientOutcome = InitSuccessResult | { success: false; error: unknown };
-
-function getProveErrorCode(error: unknown): string | undefined {
-  if (error instanceof BnbZkIdProveError) {
-    return error.proveCode;
-  }
-  if (error !== null && typeof error === "object" && "code" in error) {
-    const c = (error as { code?: unknown }).code;
-    return typeof c === "string" ? c : undefined;
-  }
-  return undefined;
-}
 
 async function initClientWithRetry(client: BnbZkIdClient): Promise<InitClientOutcome> {
   try {
@@ -635,6 +697,9 @@ export default function App() {
               if (alertModal.description.trim()) {
                 parts.push("demo-alert-desc");
               }
+              if (alertModal.storeLink && alertModal.description.trim()) {
+                parts.push("demo-alert-store-link");
+              }
               if (alertModal.extensionBullets?.length) {
                 parts.push("demo-alert-bullets");
               }
@@ -663,6 +728,23 @@ export default function App() {
             {alertModal.description.trim() ? (
               <p id="demo-alert-desc" className="modal-dialog__body">
                 {alertModal.description}
+                {alertModal.storeLink ? (
+                  <>
+                    {" "}
+                    <a
+                      id="demo-alert-store-link"
+                      className="modal-dialog__text-link"
+                      href={alertModal.storeLink.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => {
+                        setExtensionInstallPending();
+                      }}
+                    >
+                      {alertModal.storeLink.label}
+                    </a>
+                  </>
+                ) : null}
               </p>
             ) : null}
             {alertModal.extensionBullets && alertModal.extensionBullets.length > 0 ? (

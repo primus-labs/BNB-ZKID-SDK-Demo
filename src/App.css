@@ -577,6 +577,25 @@ button.btn-secondary.log-decode__btn {
   color: var(--muted);
 }
 
+.modal-dialog__text-link {
+  font-weight: 600;
+  color: #2563eb;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.14em;
+  white-space: nowrap;
+}
+
+.modal-dialog__text-link:hover {
+  color: #1d4ed8;
+}
+
+.modal-dialog__text-link:focus-visible {
+  outline: 2px solid #93c5fd;
+  outline-offset: 2px;
+  border-radius: 0.2rem;
+}
+
 .modal-dialog__detail {
   margin: 0.75rem 0 0;
   padding: 0.65rem 0.75rem;
