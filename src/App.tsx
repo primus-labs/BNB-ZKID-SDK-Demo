@@ -17,6 +17,10 @@ import {
 import { DemoLog } from "./demo-log";
 import { fetchLatestIdentityPropertyFromRegistry } from "./fetch-latest-identity-property";
 import {
+  AMAZON_MARKETPLACES,
+  isAmazonProviderOption
+} from "./amazon-marketplaces";
+import {
   FALLBACK_PROVIDER_OPTIONS,
   SDK_DEMO_APP_ID,
   type LogEntry,
@@ -251,6 +255,11 @@ export default function App() {
   const [decodeRegistryLoading, setDecodeRegistryLoading] = useState(false);
   const [decodeError, setDecodeError] = useState<string | null>(null);
   const [decodeOutput, setDecodeOutput] = useState<string | null>(null);
+  const [amazonRegionModal, setAmazonRegionModal] = useState<{
+    selectedOption: ProviderOption;
+    connectedUserAddress: string;
+  } | null>(null);
+  const [amazonMarketId, setAmazonMarketId] = useState<string>(() => AMAZON_MARKETPLACES[0]?.id ?? "");
 
   const clientRef = useRef<BnbZkIdClient | null>(null);
   const { userAddress, setUserAddress, walletError, isWalletConnected, connectWallet, disconnectWallet } =
@@ -269,6 +278,10 @@ export default function App() {
 
   const closeModal = useCallback(() => {
     setAlertModal(null);
+  }, []);
+
+  const closeAmazonRegionModal = useCallback(() => {
+    setAmazonRegionModal(null);
   }, []);
 
   useEffect(() => {
@@ -367,6 +380,19 @@ export default function App() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [alertModal, closeModal]);
 
+  useEffect(() => {
+    if (!amazonRegionModal) {
+      return;
+    }
+    const onKeyDown = (ev: KeyboardEvent) => {
+      if (ev.key === "Escape") {
+        closeAmazonRegionModal();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [amazonRegionModal, closeAmazonRegionModal]);
+
   const appendLog = (text: string) => {
     setLogEntries((prev) => [...prev, { kind: "text", text }]);
   };
@@ -386,7 +412,11 @@ export default function App() {
       : FALLBACK_PROVIDER_OPTIONS;
   const canRunProve = !running && hasWalletAddress;
 
-  const runProveFlow = async (selectedOption: ProviderOption, connectedUserAddress: string) => {
+  const runProveFlow = async (
+    selectedOption: ProviderOption,
+    connectedUserAddress: string,
+    proveExtras?: { jumpToUrl?: string }
+  ) => {
     setLogEntries([]);
     setProgressStatusTrail([]);
     setFinalProofResult(null);
@@ -410,10 +440,14 @@ export default function App() {
         return;
       }
 
+      const jumpToUrl = proveExtras?.jumpToUrl?.trim();
       const proveInput: ProveInput = {
         clientRequestId: new Date().getTime().toString(),
         userAddress: connectedUserAddress,
-        identityPropertyId
+        identityPropertyId,
+        ...(jumpToUrl !== undefined && jumpToUrl !== ""
+          ? { provingParams: { jumpToUrl } }
+          : {})
       };
 
       const proveResult = await client.prove(proveInput, {
@@ -440,6 +474,57 @@ export default function App() {
       setRunning(false);
     }
   };
+
+  /** Shared path: refresh provider list if needed, `init`, validate identity is enabled, then `prove`. */
+  async function runGatewayInitAndProve(
+    selectedOption: ProviderOption,
+    connectedUserAddress: string,
+    proveExtras?: { jumpToUrl?: string }
+  ): Promise<void> {
+    const client = clientRef.current;
+    if (!client) {
+      setAlertModal({
+        title: "SDK not ready",
+        description: "The client is still loading or the page needs a refresh. Please wait a moment and try again."
+      });
+      return;
+    }
+
+    let effectiveRows = providerOptions;
+    if (effectiveRows.length === 0) {
+      try {
+        effectiveRows = await fetchProviderOptionsFromGateway();
+      } catch (providerError) {
+        console.error("Gateway provider fetch error:", providerError);
+      }
+    }
+
+    const initResult = await initClientWithRetry(client);
+    if (!initResult.success) {
+      setAlertModal(formatInitFailureForModal(initResult.error));
+      return;
+    }
+
+    const initRows = flattenProviderOptions(initResult.providers);
+    if (initRows.length > 0) {
+      effectiveRows = initRows;
+      setProviderOptions(initRows);
+    } else if (effectiveRows.length > 0) {
+      setProviderOptions(effectiveRows);
+    }
+
+    const allowedIds = new Set(effectiveRows.map((r) => r.identityPropertyId));
+    if (!allowedIds.has(selectedOption.identityPropertyId)) {
+      setAlertModal({
+        title: "Identity not available",
+        description:
+          "This proof type is not enabled for the current Gateway configuration. Pick another option after SDK init succeeds."
+      });
+      return;
+    }
+
+    await runProveFlow(selectedOption, connectedUserAddress, proveExtras);
+  }
 
   const handleDecodeViaRegistry = useCallback(async () => {
     const res = lastProveSuccess;
@@ -503,40 +588,13 @@ export default function App() {
       return;
     }
 
-    let effectiveRows = providerOptions;
-    if (effectiveRows.length === 0) {
-      try {
-        effectiveRows = await fetchProviderOptionsFromGateway();
-      } catch (providerError) {
-        console.error("Gateway provider fetch error:", providerError);
-      }
-    }
-
-    const initResult = await initClientWithRetry(client);
-    if (!initResult.success) {
-      setAlertModal(formatInitFailureForModal(initResult.error));
+    if (isAmazonProviderOption(selectedOption)) {
+      setAmazonMarketId(AMAZON_MARKETPLACES[0]?.id ?? "");
+      setAmazonRegionModal({ selectedOption, connectedUserAddress });
       return;
     }
 
-    const initRows = flattenProviderOptions(initResult.providers);
-    if (initRows.length > 0) {
-      effectiveRows = initRows;
-      setProviderOptions(initRows);
-    } else if (effectiveRows.length > 0) {
-      setProviderOptions(effectiveRows);
-    }
-
-    const allowedIds = new Set(effectiveRows.map((r) => r.identityPropertyId));
-    if (!allowedIds.has(selectedOption.identityPropertyId)) {
-      setAlertModal({
-        title: "Identity not available",
-        description:
-          "This proof type is not enabled for the current Gateway configuration. Pick another option after SDK init succeeds."
-      });
-      return;
-    }
-
-    await runProveFlow(selectedOption, connectedUserAddress);
+    await runGatewayInitAndProve(selectedOption, connectedUserAddress);
   };
 
   return (
@@ -547,7 +605,7 @@ export default function App() {
             <div>
               <h1>ZKID SDK Integration Live Demo</h1>
               <p>
-                A step-by-step walkthrough of integrating zkTLS and zkVM workflow into the Lista
+                A step-by-step walkthrough of integrating zkTLS and zkVM workflow into the
                 dApp frontend.
               </p>
             </div>
@@ -787,6 +845,87 @@ export default function App() {
                 </button>
               </div>
             ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      {amazonRegionModal ? (
+        <div
+          className="modal-backdrop"
+          role="presentation"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              closeAmazonRegionModal();
+            }
+          }}
+        >
+          <div
+            className="modal-dialog modal-dialog--amazon-region"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="amazon-region-title"
+            aria-describedby="amazon-region-desc"
+          >
+            <div className="amazon-region-modal">
+              <div className="modal-dialog__header modal-dialog__header--stack">
+                <div className="amazon-region-modal__header-row">
+                  <div className="modal-dialog__head-text">
+                    <h3 id="amazon-region-title" className="modal-dialog__title">
+                      Choose your Amazon site
+                    </h3>
+                    <p id="amazon-region-desc" className="modal-dialog__subtitle amazon-region-modal__subtitle">
+                      Select the storefront that matches your Amazon account before continuing.
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div className="amazon-region-modal__panel">
+                <div className="amazon-region-field">
+                  <label className="amazon-region-label" htmlFor="amazon-market-select">
+                    Marketplace
+                  </label>
+                  <select
+                    id="amazon-market-select"
+                    className="amazon-region-select"
+                    value={amazonMarketId}
+                    onChange={(e) => setAmazonMarketId(e.target.value)}
+                  >
+                    {AMAZON_MARKETPLACES.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="modal-dialog__actions amazon-region-modal__actions">
+                <button
+                  type="button"
+                  className="modal-dialog__btn modal-dialog__btn--secondary amazon-region-modal__btn-cancel"
+                  onClick={closeAmazonRegionModal}
+                >
+                  取消
+                </button>
+                <button
+                  type="button"
+                  className="modal-dialog__btn modal-dialog__btn--amazon-confirm"
+                  onClick={() => {
+                    const market =
+                      AMAZON_MARKETPLACES.find((m) => m.id === amazonMarketId) ?? AMAZON_MARKETPLACES[0];
+                    if (!amazonRegionModal || !market) {
+                      return;
+                    }
+                    const pending = amazonRegionModal;
+                    setAmazonRegionModal(null);
+                    void runGatewayInitAndProve(pending.selectedOption, pending.connectedUserAddress, {
+                      jumpToUrl: market.jumpToUrl
+                    });
+                  }}
+                >
+                  确定
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       ) : null}

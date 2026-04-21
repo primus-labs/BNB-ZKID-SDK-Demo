@@ -799,6 +799,131 @@ button.btn-secondary.log-decode__btn {
   box-shadow: 0 6px 18px rgba(31, 26, 20, 0.24);
 }
 
+.modal-dialog--amazon-region {
+  width: min(100%, 27.5rem);
+  max-height: min(90vh, 30rem);
+}
+
+.amazon-region-modal {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 1rem;
+}
+
+.amazon-region-modal__header-row {
+  display: block;
+}
+
+.amazon-region-modal__subtitle {
+  max-width: 23rem;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.amazon-region-modal__panel {
+  padding: 1.05rem;
+  background: #faf6ef;
+  border: 1px solid #e8dfd2;
+  border-radius: 0.9rem;
+}
+
+.amazon-region-modal__actions {
+  margin-top: 0.5rem;
+  padding-top: 0.15rem;
+}
+
+.modal-dialog__btn--amazon-confirm {
+  min-width: 6.25rem;
+}
+
+.modal-dialog__btn--amazon-confirm:hover {
+  transform: translateY(-1px);
+}
+
+.amazon-region-modal__btn-cancel {
+  min-width: 6rem;
+}
+
+.modal-dialog__code {
+  font-size: 0.78em;
+  font-family: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, Consolas, monospace;
+  background: #f0f2f5;
+  padding: 0.1em 0.35em;
+  border-radius: 0.25rem;
+}
+
+.modal-dialog__actions--split {
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.modal-dialog__btn--secondary {
+  background: #fff;
+  color: #2a4569;
+  border: 1px solid #c5d3e8;
+  box-shadow: none;
+}
+
+.modal-dialog__btn--secondary:hover {
+  background: #f5f8fc;
+  box-shadow: 0 2px 8px rgba(42, 69, 105, 0.12);
+}
+
+.amazon-region-field {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  min-width: 0;
+}
+
+.amazon-region-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: #55483d;
+}
+
+.amazon-region-select {
+  width: 100%;
+  max-width: 100%;
+  padding: 0.78rem 0.9rem;
+  font-size: 0.92rem;
+  line-height: 1.35;
+  color: var(--ink);
+  background-color: #fff;
+  border: 1px solid #d4d9e3;
+  border-radius: 0.9rem;
+  box-shadow:
+    0 1px 2px rgba(31, 26, 20, 0.05),
+    0 4px 14px rgba(31, 26, 20, 0.04);
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23475569' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.95rem center;
+  padding-right: 2.6rem;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.amazon-region-select:hover {
+  border-color: #aebed4;
+  box-shadow:
+    0 1px 2px rgba(31, 26, 20, 0.06),
+    0 5px 14px rgba(42, 69, 105, 0.1);
+}
+
+.amazon-region-select:focus {
+  outline: none;
+  border-color: #3c71be;
+  box-shadow:
+    0 0 0 3px rgba(60, 113, 190, 0.16),
+    0 2px 8px rgba(60, 113, 190, 0.08);
+}
+
 @media (max-width: 740px) {
   .panel-header {
     flex-direction: column;

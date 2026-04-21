@@ -1,3 +1,5 @@
+import { AMAZON_PROVE_IDENTITY_PROPERTY_ID } from "./amazon-marketplaces";
+
 export type LogEntry =
   | { kind: "text"; text: string }
   | { kind: "outcome"; success: boolean };
@@ -33,7 +35,7 @@ export const FALLBACK_PROVIDER_OPTIONS: ProviderOption[] = [
   },
   {
     providerDescription: "Amazon",
-    identityPropertyId: "amazon_prime_orders_account_age",
+    identityPropertyId: AMAZON_PROVE_IDENTITY_PROPERTY_ID,
     propertyDescription: "Prime status + order counts + Account age"
   },
   {
