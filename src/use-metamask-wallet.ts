@@ -20,6 +20,22 @@ function formatError(error: unknown): string {
   return String(error);
 }
 
+function isWalletRequestRejected(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) {
+    return false;
+  }
+  const maybeCode = (error as { code?: unknown }).code;
+  if (maybeCode === 4001 || maybeCode === "4001") {
+    return true;
+  }
+  const maybeMessage = (error as { message?: unknown }).message;
+  if (typeof maybeMessage === "string") {
+    const normalized = maybeMessage.toLowerCase();
+    return normalized.includes("user rejected") || normalized.includes("user denied");
+  }
+  return false;
+}
+
 function getEthereumProvider(): EthereumProvider | undefined {
   const maybeEthereum = (window as typeof window & { ethereum?: EthereumProvider }).ethereum;
   return maybeEthereum;
@@ -55,8 +71,12 @@ export function useMetaMaskWallet() {
       setIsWalletConnected(true);
     } catch (error) {
       setUserAddress("");
-      setWalletError(formatError(error));
       setIsWalletConnected(false);
+      if (isWalletRequestRejected(error)) {
+        setWalletError(null);
+        return;
+      }
+      setWalletError(formatError(error));
     }
   };
 

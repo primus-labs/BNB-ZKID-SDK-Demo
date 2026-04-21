@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { bscTestnet } from "viem/chains";
 import { getAddress } from "viem";
 import {
@@ -259,7 +260,15 @@ export default function App() {
     selectedOption: ProviderOption;
     connectedUserAddress: string;
   } | null>(null);
-  const [amazonMarketId, setAmazonMarketId] = useState<string>(() => AMAZON_MARKETPLACES[0]?.id ?? "");
+  const [amazonMarketId, setAmazonMarketId] = useState<string>("");
+  const [amazonRegionMenuOpen, setAmazonRegionMenuOpen] = useState(false);
+  const [amazonRegionMenuPosition, setAmazonRegionMenuPosition] = useState<{
+    top: number;
+    left: number;
+    width: number;
+  } | null>(null);
+  const amazonSelectTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const amazonSelectMenuRef = useRef<HTMLDivElement | null>(null);
 
   const clientRef = useRef<BnbZkIdClient | null>(null);
   const { userAddress, setUserAddress, walletError, isWalletConnected, connectWallet, disconnectWallet } =
@@ -282,6 +291,8 @@ export default function App() {
 
   const closeAmazonRegionModal = useCallback(() => {
     setAmazonRegionModal(null);
+    setAmazonRegionMenuOpen(false);
+    setAmazonRegionMenuPosition(null);
   }, []);
 
   useEffect(() => {
@@ -386,12 +397,65 @@ export default function App() {
     }
     const onKeyDown = (ev: KeyboardEvent) => {
       if (ev.key === "Escape") {
+        if (amazonRegionMenuOpen) {
+          setAmazonRegionMenuOpen(false);
+          return;
+        }
         closeAmazonRegionModal();
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [amazonRegionModal, closeAmazonRegionModal]);
+  }, [amazonRegionModal, amazonRegionMenuOpen, closeAmazonRegionModal]);
+
+  useEffect(() => {
+    if (!amazonRegionModal) {
+      setAmazonRegionMenuOpen(false);
+      setAmazonRegionMenuPosition(null);
+    }
+  }, [amazonRegionModal]);
+
+  useEffect(() => {
+    if (!amazonRegionModal || !amazonRegionMenuOpen) {
+      setAmazonRegionMenuPosition(null);
+      return;
+    }
+    const updatePosition = () => {
+      const triggerEl = amazonSelectTriggerRef.current;
+      if (!triggerEl) {
+        setAmazonRegionMenuPosition(null);
+        return;
+      }
+      const rect = triggerEl.getBoundingClientRect();
+      setAmazonRegionMenuPosition({
+        top: rect.bottom + 8,
+        left: rect.left,
+        width: rect.width
+      });
+    };
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
+    return () => {
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [amazonRegionModal, amazonRegionMenuOpen]);
+
+  useEffect(() => {
+    if (!amazonRegionMenuOpen) {
+      return;
+    }
+    const onPointerDown = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (amazonSelectTriggerRef.current?.contains(target) || amazonSelectMenuRef.current?.contains(target)) {
+        return;
+      }
+      setAmazonRegionMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onPointerDown);
+    return () => document.removeEventListener("mousedown", onPointerDown);
+  }, [amazonRegionMenuOpen]);
 
   const appendLog = (text: string) => {
     setLogEntries((prev) => [...prev, { kind: "text", text }]);
@@ -412,13 +476,9 @@ export default function App() {
       : FALLBACK_PROVIDER_OPTIONS;
   const canRunProve = !running && hasWalletAddress;
 
-  const runProveFlow = async (
-    selectedOption: ProviderOption,
-    connectedUserAddress: string,
-    proveExtras?: { jumpToUrl?: string }
-  ) => {
+  const openProgressModalAtInitializing = useCallback(() => {
     setLogEntries([]);
-    setProgressStatusTrail([]);
+    setProgressStatusTrail(["initializing"]);
     setFinalProofResult(null);
     setLastProveSuccess(null);
     setDecodeError(null);
@@ -426,6 +486,25 @@ export default function App() {
     setDecodeRegistryLoading(false);
     setRunning(true);
     setProofModalOpen(true);
+  }, []);
+
+  const runProveFlow = async (
+    selectedOption: ProviderOption,
+    connectedUserAddress: string,
+    proveExtras?: { jumpToUrl?: string },
+    options?: { progressModalPrimed?: boolean }
+  ) => {
+    if (!options?.progressModalPrimed) {
+      setLogEntries([]);
+      setProgressStatusTrail([]);
+      setFinalProofResult(null);
+      setLastProveSuccess(null);
+      setDecodeError(null);
+      setDecodeOutput(null);
+      setDecodeRegistryLoading(false);
+      setRunning(true);
+      setProofModalOpen(true);
+    }
 
     try {
       const client = clientRef.current;
@@ -479,10 +558,25 @@ export default function App() {
   async function runGatewayInitAndProve(
     selectedOption: ProviderOption,
     connectedUserAddress: string,
-    proveExtras?: { jumpToUrl?: string }
+    proveExtras?: { jumpToUrl?: string },
+    options?: { openProgressImmediately?: boolean }
   ): Promise<void> {
+    if (options?.openProgressImmediately) {
+      openProgressModalAtInitializing();
+    }
+
+    const closeProgressModalIfNeeded = () => {
+      if (!options?.openProgressImmediately) {
+        return;
+      }
+      setRunning(false);
+      setProofModalOpen(false);
+      setProgressStatusTrail([]);
+    };
+
     const client = clientRef.current;
     if (!client) {
+      closeProgressModalIfNeeded();
       setAlertModal({
         title: "SDK not ready",
         description: "The client is still loading or the page needs a refresh. Please wait a moment and try again."
@@ -501,6 +595,7 @@ export default function App() {
 
     const initResult = await initClientWithRetry(client);
     if (!initResult.success) {
+      closeProgressModalIfNeeded();
       setAlertModal(formatInitFailureForModal(initResult.error));
       return;
     }
@@ -515,6 +610,7 @@ export default function App() {
 
     const allowedIds = new Set(effectiveRows.map((r) => r.identityPropertyId));
     if (!allowedIds.has(selectedOption.identityPropertyId)) {
+      closeProgressModalIfNeeded();
       setAlertModal({
         title: "Identity not available",
         description:
@@ -523,7 +619,9 @@ export default function App() {
       return;
     }
 
-    await runProveFlow(selectedOption, connectedUserAddress, proveExtras);
+    await runProveFlow(selectedOption, connectedUserAddress, proveExtras, {
+      progressModalPrimed: options?.openProgressImmediately === true
+    });
   }
 
   const handleDecodeViaRegistry = useCallback(async () => {
@@ -589,12 +687,36 @@ export default function App() {
     }
 
     if (isAmazonProviderOption(selectedOption)) {
-      setAmazonMarketId(AMAZON_MARKETPLACES[0]?.id ?? "");
+      if (!isPrimusExtensionPresent()) {
+        setAlertModal(primusExtensionRequiredModal());
+        return;
+      }
+      setAmazonMarketId("");
+      setAmazonRegionMenuOpen(false);
       setAmazonRegionModal({ selectedOption, connectedUserAddress });
       return;
     }
 
     await runGatewayInitAndProve(selectedOption, connectedUserAddress);
+  };
+
+  const handleAmazonMarketSelect = (marketId: string, jumpToUrl: string) => {
+    setAmazonMarketId(marketId);
+    setAmazonRegionMenuOpen(false);
+    setAmazonRegionMenuPosition(null);
+    if (!amazonRegionModal) {
+      return;
+    }
+    const pending = amazonRegionModal;
+    setAmazonRegionModal(null);
+    void runGatewayInitAndProve(
+      pending.selectedOption,
+      pending.connectedUserAddress,
+      {
+        jumpToUrl
+      },
+      { openProgressImmediately: true }
+    );
   };
 
   return (
@@ -869,66 +991,70 @@ export default function App() {
             <div className="amazon-region-modal">
               <div className="modal-dialog__header modal-dialog__header--stack">
                 <div className="amazon-region-modal__header-row">
-                  <div className="modal-dialog__head-text">
+                  <div className="modal-dialog__head-text amazon-region-modal__head-text">
                     <h3 id="amazon-region-title" className="modal-dialog__title">
-                      Choose your Amazon site
+                      Choose Your Amazon Site
                     </h3>
                     <p id="amazon-region-desc" className="modal-dialog__subtitle amazon-region-modal__subtitle">
-                      Select the storefront that matches your Amazon account before continuing.
+                      As Amazon has different regional sites, please select the one you use.
                     </p>
                   </div>
                 </div>
               </div>
-              <div className="amazon-region-modal__panel">
-                <div className="amazon-region-field">
-                  <label className="amazon-region-label" htmlFor="amazon-market-select">
-                    Marketplace
-                  </label>
-                  <select
-                    id="amazon-market-select"
-                    className="amazon-region-select"
-                    value={amazonMarketId}
-                    onChange={(e) => setAmazonMarketId(e.target.value)}
-                  >
-                    {AMAZON_MARKETPLACES.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-              <div className="modal-dialog__actions amazon-region-modal__actions">
+              <div className="amazon-region-field">
                 <button
+                  ref={amazonSelectTriggerRef}
+                  id="amazon-market-select"
                   type="button"
-                  className="modal-dialog__btn modal-dialog__btn--secondary amazon-region-modal__btn-cancel"
-                  onClick={closeAmazonRegionModal}
+                  className={`amazon-region-select-trigger${amazonMarketId === "" ? " amazon-region-select-trigger--placeholder" : ""}`}
+                  aria-haspopup="listbox"
+                  aria-expanded={amazonRegionMenuOpen}
+                  aria-controls="amazon-market-options"
+                  onClick={() => setAmazonRegionMenuOpen((prev) => !prev)}
                 >
-                  取消
-                </button>
-                <button
-                  type="button"
-                  className="modal-dialog__btn modal-dialog__btn--amazon-confirm"
-                  onClick={() => {
-                    const market =
-                      AMAZON_MARKETPLACES.find((m) => m.id === amazonMarketId) ?? AMAZON_MARKETPLACES[0];
-                    if (!amazonRegionModal || !market) {
-                      return;
-                    }
-                    const pending = amazonRegionModal;
-                    setAmazonRegionModal(null);
-                    void runGatewayInitAndProve(pending.selectedOption, pending.connectedUserAddress, {
-                      jumpToUrl: market.jumpToUrl
-                    });
-                  }}
-                >
-                  确定
+                  <span className="amazon-region-select-trigger__text">
+                    {amazonMarketId === ""
+                      ? "Choose a site."
+                      : (AMAZON_MARKETPLACES.find((m) => m.id === amazonMarketId)?.label ?? "Choose a site.")}
+                  </span>
+                  <span className="amazon-region-select-trigger__icon" aria-hidden>
+                    ▾
+                  </span>
                 </button>
               </div>
             </div>
           </div>
         </div>
       ) : null}
+      {amazonRegionModal && amazonRegionMenuOpen && amazonRegionMenuPosition
+        ? createPortal(
+            <div
+              ref={amazonSelectMenuRef}
+              className="amazon-region-options amazon-region-options--floating"
+              role="listbox"
+              id="amazon-market-options"
+              style={{
+                top: `${amazonRegionMenuPosition.top}px`,
+                left: `${amazonRegionMenuPosition.left}px`,
+                width: `${amazonRegionMenuPosition.width}px`
+              }}
+            >
+              {AMAZON_MARKETPLACES.map((m) => (
+                <button
+                  key={m.id}
+                  type="button"
+                  role="option"
+                  aria-selected={amazonMarketId === m.id}
+                  className={`amazon-region-option${amazonMarketId === m.id ? " is-selected" : ""}`}
+                  onClick={() => handleAmazonMarketSelect(m.id, m.jumpToUrl)}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>,
+            document.body
+          )
+        : null}
     </>
   );
 }
