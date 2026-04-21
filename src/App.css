@@ -808,41 +808,28 @@ button.btn-secondary.log-decode__btn {
   display: flex;
   flex-direction: column;
   min-width: 0;
-  gap: 1rem;
+  gap: 16px;
+}
+
+.amazon-region-modal .modal-dialog__header {
+  margin-bottom: 0;
 }
 
 .amazon-region-modal__header-row {
   display: block;
 }
 
+.amazon-region-modal__head-text {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .amazon-region-modal__subtitle {
-  max-width: 23rem;
+  width: 100%;
+  margin: 0;
   font-size: 0.82rem;
   line-height: 1.45;
-}
-
-.amazon-region-modal__panel {
-  padding: 1.05rem;
-  background: #faf6ef;
-  border: 1px solid #e8dfd2;
-  border-radius: 0.9rem;
-}
-
-.amazon-region-modal__actions {
-  margin-top: 0.5rem;
-  padding-top: 0.15rem;
-}
-
-.modal-dialog__btn--amazon-confirm {
-  min-width: 6.25rem;
-}
-
-.modal-dialog__btn--amazon-confirm:hover {
-  transform: translateY(-1px);
-}
-
-.amazon-region-modal__btn-cancel {
-  min-width: 6rem;
 }
 
 .modal-dialog__code {
@@ -874,23 +861,18 @@ button.btn-secondary.log-decode__btn {
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.55rem;
   min-width: 0;
+  gap: 8px;
 }
 
-.amazon-region-label {
-  font-size: 0.82rem;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  color: #55483d;
-}
-
-.amazon-region-select {
+.amazon-region-select-trigger {
   width: 100%;
   max-width: 100%;
-  padding: 0.78rem 0.9rem;
+  height: 40px;
+  padding: 0 0.9rem;
   font-size: 0.92rem;
   line-height: 1.35;
+  text-align: left;
   color: var(--ink);
   background-color: #fff;
   border: 1px solid #d4d9e3;
@@ -899,29 +881,95 @@ button.btn-secondary.log-decode__btn {
     0 1px 2px rgba(31, 26, 20, 0.05),
     0 4px 14px rgba(31, 26, 20, 0.04);
   cursor: pointer;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23475569' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 0.95rem center;
-  padding-right: 2.6rem;
   transition:
     border-color 0.15s ease,
     box-shadow 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
 }
 
-.amazon-region-select:hover {
+.amazon-region-select-trigger:hover {
   border-color: #aebed4;
   box-shadow:
     0 1px 2px rgba(31, 26, 20, 0.06),
     0 5px 14px rgba(42, 69, 105, 0.1);
 }
 
-.amazon-region-select:focus {
+.amazon-region-select-trigger:focus {
   outline: none;
   border-color: #3c71be;
   box-shadow:
     0 0 0 3px rgba(60, 113, 190, 0.16),
     0 2px 8px rgba(60, 113, 190, 0.08);
+}
+
+.amazon-region-select-trigger--placeholder {
+  color: var(--muted);
+}
+
+.amazon-region-select-trigger__text {
+  min-width: 0;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.amazon-region-select-trigger__icon {
+  flex-shrink: 0;
+  color: #4d5f78;
+  font-size: 0.82rem;
+}
+
+.amazon-region-options {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid #d4d9e3;
+  border-radius: 0.9rem;
+  background: #fff;
+  box-shadow:
+    0 1px 2px rgba(31, 26, 20, 0.05),
+    0 10px 24px rgba(31, 26, 20, 0.08);
+}
+
+.amazon-region-options--floating {
+  position: fixed;
+  z-index: 1200;
+  overscroll-behavior: contain;
+}
+
+.amazon-region-option {
+  width: 100%;
+  border: none;
+  border-bottom: 1px solid #edf0f5;
+  background: #fff;
+  color: var(--ink);
+  text-align: left;
+  padding: 0.62rem 0.85rem;
+  font: inherit;
+  font-size: 0.9rem;
+  line-height: 1.35;
+  cursor: pointer;
+}
+
+.amazon-region-option:last-child {
+  border-bottom: none;
+}
+
+.amazon-region-option.is-selected {
+  background: #eef5ff;
+  color: #1f4f96;
+}
+
+.amazon-region-option:hover {
+  background: #f6f9ff;
+  transform: none;
+}
+
+.amazon-region-select-trigger:hover {
+  transform: none;
 }
 
 @media (max-width: 740px) {

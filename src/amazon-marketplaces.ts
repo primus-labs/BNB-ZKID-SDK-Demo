@@ -51,13 +51,13 @@ const AMAZON_MARKETPLACE_URL_BY_CODE: Record<string, string> = {
   SA: "https://www.amazon.sa",
   BE: "https://www.amazon.com.be",
   IE: "https://www.amazon.ie",
-  EG: "https://www.amazon.eg",
-  DEFAULT: "https://www.amazon.com"
+  EG: "https://www.amazon.eg"
 };
 
 const AMAZON_MARKETPLACE_ORDER = [
   "US",
   "JP",
+  "SG",
   "GB",
   "DE",
   "IN",
@@ -70,7 +70,6 @@ const AMAZON_MARKETPLACE_ORDER = [
   "MX",
   "NL",
   "AE",
-  "SG",
   "ZA",
   "TR",
   "SE",
@@ -78,8 +77,7 @@ const AMAZON_MARKETPLACE_ORDER = [
   "SA",
   "BE",
   "IE",
-  "EG",
-  "DEFAULT"
+  "EG"
 ] as const;
 
 const AMAZON_MARKETPLACE_LABELS: Record<(typeof AMAZON_MARKETPLACE_ORDER)[number], string> = {
@@ -105,8 +103,7 @@ const AMAZON_MARKETPLACE_LABELS: Record<(typeof AMAZON_MARKETPLACE_ORDER)[number
   SA: "Saudi Arabia",
   BE: "Belgium",
   IE: "Ireland",
-  EG: "Egypt",
-  DEFAULT: "Default"
+  EG: "Egypt"
 };
 
 /**
