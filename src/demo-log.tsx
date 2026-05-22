@@ -37,10 +37,13 @@ export function DemoLog({
           const isError = entry.text.startsWith("error:");
           const isResult = entry.text.startsWith("prove:");
           if (isResult) {
+            const resultText = entry.text.replace(/^prove:\s*/i, "").trim();
             return (
               <div key={i} className="log-result-wrap">
-                <h4 className="log-result__title">Result</h4>
-                <div className="log-line log-line--result">{entry.text}</div>
+                <h4 className="log-result__title">Proof Result</h4>
+                <div className="log-line log-line--result">
+                  <div className="log-line__result-text">{resultText}</div>
+                </div>
                 <div className="log-decode">
                   <div className="log-decode__btns">
                     <button
@@ -64,7 +67,9 @@ export function DemoLog({
                     </div>
                   ) : null}
                   {decodeOutput ? (
-                    <pre className="log-line log-line--result log-decode__output">{decodeOutput}</pre>
+                    <div className="log-line log-line--result log-line--result--decode">
+                      <pre className="log-line__result-text log-line__result-text--pre">{decodeOutput}</pre>
+                    </div>
                   ) : null}
                 </div>
               </div>
