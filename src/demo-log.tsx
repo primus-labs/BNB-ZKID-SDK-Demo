@@ -20,11 +20,20 @@ export function DemoLog({
   decodeOutput,
   onDecodeViaRegistry
 }: DemoLogProps) {
+  const textEntries = entries.filter((entry) => entry.kind === "text");
+  const hasVisibleContent =
+    textEntries.length > 0 ||
+    decodeRegistryLoading ||
+    Boolean(decodeError) ||
+    Boolean(decodeOutput) ||
+    Boolean(lastProveSuccess);
+  if (!hasVisibleContent) {
+    return null;
+  }
+
   return (
     <div className="log" aria-live="polite">
-      {entries
-        .filter((entry) => entry.kind === "text")
-        .map((entry, i) => {
+      {textEntries.map((entry, i) => {
           const isError = entry.text.startsWith("error:");
           const isResult = entry.text.startsWith("prove:");
           if (isResult) {
@@ -61,10 +70,19 @@ export function DemoLog({
               </div>
             );
           }
+          if (isError) {
+            const errorText = entry.text.replace(/^error:\s*/i, "").trim();
+            return (
+              <div key={i} className="log-line log-line--error">
+                <div className="log-line__label">Error</div>
+                <div className="log-line__error-text">{errorText}</div>
+              </div>
+            );
+          }
           return (
             <div
               key={i}
-              className={`log-line ${isError ? "log-line--error" : ""}`}
+              className="log-line"
             >
               {entry.text}
             </div>

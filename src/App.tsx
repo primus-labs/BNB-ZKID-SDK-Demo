@@ -721,83 +721,98 @@ export default function App() {
 
   return (
     <>
-      <main className="app-main">
-        <div className="panel">
-          <header className="panel-header">
-            <div>
-              <h1>ZKID SDK Integration Live Demo</h1>
-              <p>
-                A step-by-step walkthrough of integrating zkTLS and zkVM workflow into the
-                dApp frontend.
-              </p>
-            </div>
-          </header>
+      <div className="app-shell">
+        <main className="app-main">
+          <div className="panel">
+            <header className="panel-header">
+              <div>
+                <h1>ZKID SDK Integration Live Demo</h1>
+                <p>
+                  A step-by-step walkthrough of integrating zkTLS and zkVM workflow into the
+                  dApp frontend.
+                </p>
+              </div>
+            </header>
 
-          <section className="step-card">
-            <div className="step-head">
-              <h2>Step 1 Connect Wallet</h2>
+            <section className="step-card">
+              <div className="step-head">
+                <h2>Step 1 Connect Wallet</h2>
+              </div>
               <button
                 type="button"
                 className="btn-secondary wallet-btn"
-                onClick={() => (isWalletConnected ? disconnectWallet() : void connectWallet())}
+                onClick={() => {
+                  if (isWalletConnected) {
+                    disconnectWallet();
+                    window.location.reload();
+                    return;
+                  }
+                  void connectWallet();
+                }}
                 disabled={running}
               >
-                {isWalletConnected ? "Disconnect Wallet" : "Connect Wallet"}
+                {isWalletConnected ? "Disconnect" : "Connect"}
               </button>
-            </div>
-            <div className="field">
-              <label htmlFor="user-address">User Address</label>
-              <input
-                id="user-address"
-                value={userAddress}
-                onChange={(e) => setUserAddress(e.target.value)}
-                placeholder="Connect MetaMask to continue. This address will be bound to each proof."
-                autoComplete="off"
-              />
-            </div>
-            {walletError ? <p className="hint">Wallet error: {walletError}</p> : null}
-          </section>
-
-          <section className="step-card">
-            <div className="step-head">
-              <h2>Step 2 Proof Generation</h2>
-            </div>
-            {providersLoading ? (
-              <div className="provider-grid provider-grid--loading" aria-label="Loading providers">
-                {Array.from({ length: 3 }).map((_, idx) => (
-                  <div key={idx} className="provider-skeleton" aria-hidden />
-                ))}
+              <div className="field">
+                <label htmlFor="user-address">User Address</label>
+                <input
+                  id="user-address"
+                  value={userAddress}
+                  onChange={(e) => setUserAddress(e.target.value)}
+                  placeholder="Connect MetaMask to continue. This address will be bound to each proof."
+                  autoComplete="off"
+                />
               </div>
-            ) : (
-              <div className="provider-grid">
-                {displayProviderOptions.map((option) => (
-                  <button
-                    key={option.identityPropertyId}
-                    type="button"
-                    className="provider-btn"
-                    disabled={!canRunProve}
-                    onClick={() => void handleProviderClick(option)}
-                    title={`${option.propertyDescription} (${option.identityPropertyId})`}
-                  >
-                    <span className="provider-btn-title">{option.providerDescription}</span>
-                    <span className="provider-btn-subtitle">{option.propertyDescription}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </section>
+              {walletError ? <p className="hint">Wallet error: {walletError}</p> : null}
+            </section>
 
-          <DemoLog
-            entries={logEntries}
-            lastProveSuccess={lastProveSuccess}
-            decodeRegistryLoading={decodeRegistryLoading}
-            canDecodeViaRegistry={canDecodeViaRegistry}
-            decodeError={decodeError}
-            decodeOutput={decodeOutput}
-            onDecodeViaRegistry={() => void handleDecodeViaRegistry()}
-          />
-        </div>
-      </main>
+            <section className="step-card">
+              <div className="step-head">
+                <h2>Step 2 Proof Generation</h2>
+              </div>
+              {providersLoading ? (
+                <div className="provider-grid provider-grid--loading" aria-label="Loading providers">
+                  {Array.from({ length: 3 }).map((_, idx) => (
+                    <div key={idx} className="provider-skeleton" aria-hidden />
+                  ))}
+                </div>
+              ) : (
+                <div className="provider-grid">
+                  {displayProviderOptions.map((option) => (
+                    <button
+                      key={option.identityPropertyId}
+                      type="button"
+                      className="provider-btn"
+                      disabled={!canRunProve}
+                      onClick={() => void handleProviderClick(option)}
+                      title={`${option.propertyDescription} (${option.identityPropertyId})`}
+                    >
+                      <span className="provider-btn-title">{option.providerDescription}</span>
+                      <span className="provider-btn-subtitle">{option.propertyDescription}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            <DemoLog
+              entries={logEntries}
+              lastProveSuccess={lastProveSuccess}
+              decodeRegistryLoading={decodeRegistryLoading}
+              canDecodeViaRegistry={canDecodeViaRegistry}
+              decodeError={decodeError}
+              decodeOutput={decodeOutput}
+              onDecodeViaRegistry={() => void handleDecodeViaRegistry()}
+            />
+          </div>
+        </main>
+
+        <footer className="app-footer" aria-label="Partners">
+          <span className="app-footer__powered">Powered by</span>
+          <img className="app-footer__logo app-footer__logo--primus" src="/logos/primus.svg" alt="Primus" />
+          <img className="app-footer__logo app-footer__logo--brevis" src="/logos/brevis.svg" alt="Brevis" />
+        </footer>
+      </div>
 
       {proofModalOpen ? (
         <div
