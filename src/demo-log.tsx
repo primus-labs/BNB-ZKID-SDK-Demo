@@ -20,18 +20,30 @@ export function DemoLog({
   decodeOutput,
   onDecodeViaRegistry
 }: DemoLogProps) {
+  const textEntries = entries.filter((entry) => entry.kind === "text");
+  const hasVisibleContent =
+    textEntries.length > 0 ||
+    decodeRegistryLoading ||
+    Boolean(decodeError) ||
+    Boolean(decodeOutput) ||
+    Boolean(lastProveSuccess);
+  if (!hasVisibleContent) {
+    return null;
+  }
+
   return (
     <div className="log" aria-live="polite">
-      {entries
-        .filter((entry) => entry.kind === "text")
-        .map((entry, i) => {
+      {textEntries.map((entry, i) => {
           const isError = entry.text.startsWith("error:");
           const isResult = entry.text.startsWith("prove:");
           if (isResult) {
+            const resultText = entry.text.replace(/^prove:\s*/i, "").trim();
             return (
               <div key={i} className="log-result-wrap">
-                <h4 className="log-result__title">Result</h4>
-                <div className="log-line log-line--result">{entry.text}</div>
+                <h4 className="log-result__title">Proof Result</h4>
+                <div className="log-line log-line--result">
+                  <div className="log-line__result-text">{resultText}</div>
+                </div>
                 <div className="log-decode">
                   <div className="log-decode__btns">
                     <button
@@ -55,16 +67,27 @@ export function DemoLog({
                     </div>
                   ) : null}
                   {decodeOutput ? (
-                    <pre className="log-line log-line--result log-decode__output">{decodeOutput}</pre>
+                    <div className="log-line log-line--result log-line--result--decode">
+                      <pre className="log-line__result-text log-line__result-text--pre">{decodeOutput}</pre>
+                    </div>
                   ) : null}
                 </div>
+              </div>
+            );
+          }
+          if (isError) {
+            const errorText = entry.text.replace(/^error:\s*/i, "").trim();
+            return (
+              <div key={i} className="log-line log-line--error">
+                <div className="log-line__label">Error</div>
+                <div className="log-line__error-text">{errorText}</div>
               </div>
             );
           }
           return (
             <div
               key={i}
-              className={`log-line ${isError ? "log-line--error" : ""}`}
+              className="log-line"
             >
               {entry.text}
             </div>
